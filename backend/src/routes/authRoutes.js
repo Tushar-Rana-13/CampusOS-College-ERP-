@@ -3,6 +3,7 @@ import {registerUser , loginUser} from '../controllers/authController.js' ;
 import{protect,authorize}from '../middleware/authMiddleware.js';
 
 const router = express.Router() ;
+// 🔍 DEBUG LOGS - Add these lines temporarily:
 
 router.post('/register' , registerUser) ;
 router.post('/login',loginUser) ;
