@@ -3,6 +3,7 @@ import cors from 'cors' ;
 import dotenv from 'dotenv' ;
 import connectDB from './config/db.js' ;
 import authRoutes from './routes/authRoutes.js';
+import { notFound, errorHandler } from './middleware/errorMiddleware.js';
 
 //Load enviroment variables
 dotenv.config() ;
@@ -19,6 +20,9 @@ app.use('/api/auth',authRoutes);
 app.get('/health' , (req,res) => {
     res.status(200).json({status: 'healthy', timestamp: new Date() }) ;
 }) ;
+
+app.use(notFound);
+app.use(errorHandler);
 
 const PORT = process.env.PORT||5000 ;
 
