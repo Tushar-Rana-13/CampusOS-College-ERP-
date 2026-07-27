@@ -6,6 +6,7 @@ import connectDB from './config/db.js' ;
 import authRoutes from './routes/authRoutes.js';
 import announcementRoutes from './routes/announcementRoutes.js';
 import courseRoutes from './routes/courseRoutes.js' ;
+import attendanceRoutes from './routes/attendanceRoutes.js' ;
 
 import { notFound, errorHandler } from './middleware/errorMiddleware.js';
 
@@ -22,6 +23,7 @@ app.use(express.json()) ;
 app.use('/api/auth',authRoutes);
 app.use('/api/announcements',announcementRoutes);
 app.use('/api/courses' , courseRoutes) ;
+app.use('/api/attendance' , attendanceRoutes) ;
 
 app.get('/health' , (req,res) => {
     res.status(200).json({status: 'healthy', timestamp: new Date() }) ;
