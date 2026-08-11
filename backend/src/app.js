@@ -9,6 +9,7 @@ import courseRoutes from './routes/courseRoutes.js' ;
 import attendanceRoutes from './routes/attendanceRoutes.js' ;
 import assignmentRoutes from './routes/assignmentRoutes.js';
 import dashboardRoutes from './routes/dashboardRoutes.js' ;
+import ticketRoutes from './routes/ticketRoutes.js' ;
 
 import { notFound, errorHandler } from './middleware/errorMiddleware.js';
 
@@ -28,6 +29,7 @@ app.use('/api/courses' , courseRoutes) ;
 app.use('/api/attendance' , attendanceRoutes) ;
 app.use('/api/assignments', assignmentRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/tickets' , ticketRoutes) ;
 
 app.get('/health' , (req,res) => {
     res.status(200).json({status: 'healthy', timestamp: new Date() }) ;
