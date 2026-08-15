@@ -1,22 +1,51 @@
 import React from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import Login from './pages/Login';
+import ProtectedRoute from './routes/ProtectedRoute';
+import Layout from './components/layout/Layout';
+import ErrorBoundary from './components/common/ErrorBoundary';
+
+// Pages
+import StudentDashboard from './pages/StudentDashboard';
+import FacultyDashboard from './pages/FacultyDashboard';
+import AdminDashboard from './pages/AdminDashboard';
+import StudentHelpdesk from './pages/StudentHelpdesk';
 
 export default function App() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-slate-900 text-white p-6">
-      <div className="bg-slate-800 border border-slate-700 rounded-2xl p-8 shadow-2xl max-w-md text-center space-y-4">
-        <div className="inline-block px-3 py-1 bg-sky-500/10 text-sky-400 text-xs font-semibold rounded-full uppercase tracking-wider">
-          CampusOS Development
-        </div>
-        <h1 className="text-3xl font-bold tracking-tight text-white">
-          Tailwind CSS v4 Connected!
-        </h1>
-        <p className="text-slate-400 text-sm">
-          If you see this dark card with styled badges, rounded borders, and blue text, your frontend design stack is 100% verified.
-        </p>
-        <button className="w-full py-2.5 px-4 bg-sky-600 hover:bg-sky-500 text-white font-medium rounded-xl transition duration-200 shadow-lg shadow-sky-600/30 active:scale-95">
-          System Ready
-        </button>
-      </div>
-    </div>
+    <ErrorBoundary>
+      <Router>
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/login" element={<Login />} />
+
+          {/* Protected Dashboard Shell */}
+          <Route element={<ProtectedRoute />}>
+            <Route element={<Layout />}>
+
+              {/* Role-Specific Student Routes */}
+              <Route element={<ProtectedRoute allowedRoles={['student']} />}>
+                <Route path="/student/dashboard" element={<StudentDashboard />} />
+                <Route path="/student/helpdesk" element={<StudentHelpdesk />} />
+              </Route>
+
+              {/* Role-Specific Faculty Routes */}
+              <Route element={<ProtectedRoute allowedRoles={['faculty']} />}>
+                <Route path="/faculty/dashboard" element={<FacultyDashboard />} />
+              </Route>
+
+              {/* Role-Specific Admin Routes */}
+              <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+                <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              </Route>
+
+            </Route>
+          </Route>
+
+          {/* Catch-all Fallback */}
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </Router>
+    </ErrorBoundary>
   );
 }
