@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getStudentTickets, createTicket } from '../services/api';
+import { getTickets, createTicket } from '../services/api'; // ✅ Updated export name
 import {
   LifeBuoy,
   Plus,
@@ -42,7 +42,7 @@ export default function StudentHelpdesk() {
     try {
       setLoading(true);
       setError(null);
-      const res = await getStudentTickets();
+      const res = await getTickets();
 
       // Flexible safety check for array extraction
       let ticketArray = [];

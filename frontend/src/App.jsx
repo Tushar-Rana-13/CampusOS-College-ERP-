@@ -10,6 +10,7 @@ import StudentDashboard from './pages/StudentDashboard';
 import FacultyDashboard from './pages/FacultyDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import StudentHelpdesk from './pages/StudentHelpdesk';
+import AdminHelpdesk from './pages/AdminHelpdesk';
 
 export default function App() {
   return (
@@ -37,8 +38,8 @@ export default function App() {
               {/* Role-Specific Admin Routes */}
               <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />
+                <Route path="/admin/helpdesk" element={<AdminHelpdesk />} />
               </Route>
-
             </Route>
           </Route>
 
