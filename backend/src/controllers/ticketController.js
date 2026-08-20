@@ -97,3 +97,55 @@ export const updateTicketStatus = asyncHandler(async (req, res) => {
     ticket,
   });
 });
+
+/**
+ * @desc    Add a comment/reply to a ticket thread
+ * @route   POST /api/tickets/:id/comments
+ * @access  Private (Student who raised ticket, Assigned Faculty, or Admin)
+ */
+export const addTicketComment = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { text } = req.body;
+
+  if (!text || !text.trim()) {
+    res.status(400);
+    throw new Error('Comment text is required');
+  }
+
+  const ticket = await Ticket.findById(id);
+
+  if (!ticket) {
+    res.status(404);
+    throw new Error('Ticket not found');
+  }
+
+  // Authorization Check: Must be the student who raised it, assigned faculty, or an admin
+  const isOwner = ticket.raisedBy.toString() === req.user._id.toString();
+  const isAssigned = ticket.assignedTo?.toString() === req.user._id.toString();
+  const isAdmin = req.user.role === 'admin';
+
+  if (!isOwner && !isAssigned && !isAdmin) {
+    res.status(403);
+    throw new Error('Not authorized to comment on this ticket');
+  }
+
+  // Push new comment sub-document
+  ticket.comments.push({
+    sender: req.user._id,
+    text: text.trim(),
+  });
+
+  await ticket.save();
+
+  // Re-fetch populated ticket to return updated comment thread with user details
+  const updatedTicket = await Ticket.findById(id)
+    .populate('raisedBy', 'name email role')
+    .populate('assignedTo', 'name email role')
+    .populate('comments.sender', 'name role');
+
+  res.status(201).json({
+    success: true,
+    message: 'Comment added successfully',
+    ticket: updatedTicket,
+  });
+});

@@ -1,62 +1,68 @@
 import mongoose from 'mongoose';
 
+const commentSchema = new mongoose.Schema(
+  {
+    sender: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    text: {
+      type: String,
+      required: [true, 'Comment text cannot be empty'],
+      trim: true,
+    },
+  },
+  { timestamps: true }
+);
+
 const ticketSchema = new mongoose.Schema(
   {
     title: {
       type: String,
-      required: [true, 'Ticket title is required'],
+      required: [true, 'Please provide a ticket title'],
       trim: true,
-      maxlength: [150, 'Title cannot exceed 150 characters'],
     },
     description: {
       type: String,
-      required: [true, 'Ticket description is required'],
-      trim: true,
+      required: [true, 'Please provide a description'],
     },
     category: {
       type: String,
-      required: [true, 'Category is required'],
-      enum: {
-        values: ['Academic', 'IT_Support', 'Finance', 'Administration', 'Other'],
-        message: '{VALUE} is not a valid helpdesk category',
-      },
+      required: true,
+      enum: ['IT Support', 'Academics', 'Hostel/Facility', 'Finance'],
     },
     priority: {
       type: String,
-      enum: ['Low', 'Medium', 'High', 'Urgent'],
+      enum: ['Low', 'Medium', 'High'],
       default: 'Medium',
     },
     status: {
       type: String,
-      enum: ['Open', 'In_Progress', 'Resolved', 'Closed'],
+      enum: ['Open', 'In Progress', 'Resolved', 'Closed'],
       default: 'Open',
     },
     raisedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: [true, 'Student reference is required'],
+      required: true,
     },
     assignedTo: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User', // Admin or Faculty handling the issue
+      ref: 'User',
+      default: null,
     },
     resolutionNotes: {
       type: String,
-      trim: true,
+      default: '',
     },
+    // Embedded comments array
+    comments: [commentSchema],
     resolvedAt: {
       type: Date,
     },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-// Indexes to speed up dashboard lookups & filtering by status/student
-ticketSchema.index({ raisedBy: 1, status: 1 });
-ticketSchema.index({ category: 1, status: 1 });
-
-const Ticket = mongoose.model('Ticket', ticketSchema);
-
-export default Ticket;
+export default mongoose.model('Ticket', ticketSchema);
