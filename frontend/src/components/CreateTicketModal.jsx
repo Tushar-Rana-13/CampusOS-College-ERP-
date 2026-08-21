@@ -4,12 +4,10 @@ import { X, AlertCircle, Send, Paperclip } from 'lucide-react';
 import api from '../services/api';
 
 const CATEGORIES = [
-  'Academic',
-  'Hostel & Mess',
-  'IT & Campus WiFi',
-  'Fee & Accounts',
-  'Library',
-  'Other',
+  'IT Support',
+  'Academics',
+  'Hostel/Facility',
+  'Finance',
 ];
 
 const PRIORITIES = [
@@ -21,7 +19,7 @@ const PRIORITIES = [
 export default function CreateTicketModal({ isOpen, onClose, onTicketCreated }) {
   const [formData, setFormData] = useState({
     title: '',
-    category: 'Academic',
+    category: 'Academics',
     priority: 'Medium',
     description: '',
   });
@@ -64,7 +62,7 @@ export default function CreateTicketModal({ isOpen, onClose, onTicketCreated }) 
       // Reset and close
       setFormData({
         title: '',
-        category: 'Academic',
+        category: 'Academics',
         priority: 'Medium',
         description: '',
       });

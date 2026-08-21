@@ -1,6 +1,6 @@
 // src/components/TicketDetailsDrawer.jsx
-import React, { useState, useEffect } from 'react';
-import { X, Send, Clock, User, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Send, Clock } from 'lucide-react';
 import api from '../services/api';
 
 export default function TicketDetailsDrawer({
@@ -13,13 +13,22 @@ export default function TicketDetailsDrawer({
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState(ticket?.status || 'Open');
   const [updatingStatus, setUpdatingStatus] = useState(false);
+  const [error, setError] = useState('');
 
-  // Sync internal state when a new ticket is selected
+  const commentsEndRef = useRef(null);
+
+  // Sync status state when ticket changes
   useEffect(() => {
     if (ticket) {
       setStatus(ticket.status);
+      setError('');
     }
   }, [ticket]);
+
+  // Auto-scroll to the latest comment when comments change
+  useEffect(() => {
+    commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [ticket?.comments]);
 
   // Lock body scroll when drawer is open
   useEffect(() => {
@@ -35,49 +44,48 @@ export default function TicketDetailsDrawer({
 
   if (!ticket) return null;
 
-  // Handle Admin status change
   const handleStatusChange = async (newStatus) => {
     try {
       setUpdatingStatus(true);
+      setError('');
       setStatus(newStatus);
+
       const res = await api.patch(`/tickets/${ticket._id}/status`, {
         status: newStatus,
       });
 
-      // Update parent component state seamlessly
-      const updated = res.data?.data || { ...ticket, status: newStatus };
+      const updated = res.data?.data || res.data?.ticket || { ...ticket, status: newStatus };
       onTicketUpdated(updated);
     } catch (err) {
       console.error('Failed to update status:', err);
-      setStatus(ticket.status); // Rollback on failure
+      setStatus(ticket.status); // Rollback
+      setError(err.response?.data?.message || 'Failed to update ticket status.');
     } finally {
       setUpdatingStatus(false);
     }
   };
 
-  // Add comment / response update
   const handleAddComment = async (e) => {
     e.preventDefault();
     if (!commentText.trim()) return;
 
     try {
       setSubmitting(true);
+      setError('');
+
       const res = await api.post(`/tickets/${ticket._id}/comments`, {
-        message: commentText,
+        text: commentText.trim(),
       });
 
-      const updatedTicket = res.data?.data || {
-        ...ticket,
-        comments: [
-          ...(ticket.comments || []),
-          { message: commentText, createdAt: new Date() },
-        ],
-      };
-
-      onTicketUpdated(updatedTicket);
-      setCommentText('');
+      // Extract updated ticket from standard ApiResponse envelope
+      const updatedTicket = res.data?.data || res.data?.ticket;
+      if (updatedTicket) {
+        onTicketUpdated(updatedTicket);
+        setCommentText('');
+      }
     } catch (err) {
       console.error('Failed to post comment:', err);
+      setError(err.response?.data?.message || 'Failed to send message. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -120,7 +128,9 @@ export default function TicketDetailsDrawer({
             <div className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/60 space-y-3">
               <div className="flex items-center justify-between text-xs text-slate-400">
                 <span>Current Status</span>
-                <span>Priority: <strong className="text-amber-400">{ticket.priority}</strong></span>
+                <span>
+                  Priority: <strong className="text-amber-400">{ticket.priority}</strong>
+                </span>
               </div>
 
               {isAdmin ? (
@@ -166,31 +176,53 @@ export default function TicketDetailsDrawer({
               <div className="space-y-3">
                 {ticket.comments && ticket.comments.length > 0 ? (
                   ticket.comments.map((c, i) => (
-                    <div key={i} className="p-3 bg-slate-800/60 rounded-xl border border-slate-700/50 space-y-1">
+                    <div
+                      key={c._id || i}
+                      className="p-3 bg-slate-800/60 rounded-xl border border-slate-700/50 space-y-1"
+                    >
                       <div className="flex items-center justify-between text-xs text-slate-400">
                         <span className="font-medium text-slate-200">
-                          {c.senderName || 'Support Agent'}
+                          {typeof c.sender === 'object' ? c.sender?.name : 'User'}
                         </span>
-                        <span>{new Date(c.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                        <span>
+                          {c.createdAt
+                            ? new Date(c.createdAt).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })
+                            : ''}
+                        </span>
                       </div>
-                      <p className="text-xs text-slate-300">{c.message}</p>
+                      <p className="text-xs text-slate-300">{c.text}</p>
                     </div>
                   ))
                 ) : (
                   <p className="text-xs text-slate-500 italic">No responses recorded yet.</p>
                 )}
+                <div ref={commentsEndRef} />
               </div>
             </div>
+
+            {/* Inline Error Feedback */}
+            {error && (
+              <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-xs text-red-400">
+                {error}
+              </div>
+            )}
           </div>
 
           {/* Footer Input */}
-          <form onSubmit={handleAddComment} className="p-4 border-t border-slate-800 bg-slate-900/80 flex items-center space-x-2">
+          <form
+            onSubmit={handleAddComment}
+            className="p-4 border-t border-slate-800 bg-slate-900/80 flex items-center space-x-2"
+          >
             <input
               type="text"
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
               placeholder="Type a reply or note..."
-              className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-sky-500"
+              disabled={submitting}
+              className="flex-1 bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2 text-sm text-white focus:outline-none focus:border-sky-500 disabled:opacity-50"
             />
             <button
               type="submit"

@@ -1,6 +1,6 @@
 import Course from '../models/Course.js';
 import Enrollment from '../models/Enrollment.js';
-import User from '../models/User.js';
+import { User } from '../models/User.js';
 import asyncHandler from '../utils/asyncHandler.js';
 
 /**

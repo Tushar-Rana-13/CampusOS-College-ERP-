@@ -3,7 +3,7 @@ import Enrollment from '../models/Enrollment.js';
 import Attendance from '../models/Attendance.js';
 import Assignment from '../models/Assignment.js';
 import Submission from '../models/Submission.js';
-import User from '../models/User.js';
+import { User } from '../models/User.js';
 import Announcement from '../models/Announcement.js';
 import asyncHandler from '../utils/asyncHandler.js';
 
