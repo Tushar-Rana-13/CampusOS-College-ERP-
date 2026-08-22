@@ -27,10 +27,11 @@ API.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// 3. Response Interceptor: Handle Global 401 Unauthorized (Expired / Tampered Token)
+// 3. Response Interceptor: Handle Global Network/Server Errors & 401 Unauthorized
 API.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Check if error response exists before inspecting HTTP status code
     if (error.response && error.response.status === 401) {
       localStorage.removeItem('campusos_user');
 
@@ -57,6 +58,17 @@ export const getTicketDetails = (id) => API.get(`/tickets/${id}`);
 export const createTicket = (ticketData) => API.post('/tickets', ticketData);
 export const updateTicket = (id, ticketData) => API.put(`/tickets/${id}`, ticketData);
 export const addTicketComment = (id, text) => API.post(`/tickets/${id}/comments`, { text });
+export const assignTicket = (id, assignedTo) => API.patch(`/tickets/${id}/assign`, { assignedTo });
+
+// Course Endpoints
+export const getCourses = () => API.get('/courses');
+export const createCourse = (data) => API.post('/courses', data);
+export const enrollCourse = (courseId, data = {}) => API.post(`/courses/${courseId}/enroll`, data);
+
+// Assignment Endpoints
+export const createAssignment = (data) => API.post('/assignments', data);
+export const getCourseAssignments = (courseId) => API.get(`/assignments/course/${courseId}`);
+export const submitAssignment = (id, data) => API.post(`/assignments/${id}/submit`, data);
 
 // User Management Endpoints
 export const getFacultyList = () => API.get('/users?role=faculty');

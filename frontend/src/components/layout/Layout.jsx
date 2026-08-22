@@ -26,46 +26,43 @@ export default function Layout() {
   };
 
   // Define navigation links based on current user role
-  const getNavLinks = () => {
-    const role = user?.role;
-    const baseLinks = [
-      {
-        name: 'Dashboard',
-        to: `/${role}/dashboard`,
-        icon: LayoutDashboard,
-      },
+  // Updated getNavLinks inside Layout.jsx
+const getNavLinks = () => {
+  const role = user?.role;
+  const baseLinks = [
+    {
+      name: 'Dashboard',
+      to: `/${role}/dashboard`,
+      icon: LayoutDashboard,
+    },
+  ];
+
+  if (role === 'student') {
+    return [
+      ...baseLinks,
+      { name: 'My Courses', to: '/courses', icon: BookOpen },
+      { name: 'Helpdesk', to: '/student/helpdesk', icon: LifeBuoy },
     ];
+  }
 
-    if (role === 'student') {
-      return [
-        ...baseLinks,
-        { name: 'My Courses', to: '/student/courses', icon: BookOpen },
-        { name: 'Attendance', to: '/student/attendance', icon: CalendarCheck },
-        { name: 'Assignments', to: '/student/assignments', icon: FileCheck },
-        { name: 'Helpdesk', to: '/student/helpdesk', icon: LifeBuoy },
-      ];
-    }
+  if (role === 'faculty') {
+    return [
+      ...baseLinks,
+      { name: 'Managed Courses', to: '/courses', icon: BookOpen },
+      { name: 'Helpdesk', to: '/faculty/helpdesk', icon: LifeBuoy },
+    ];
+  }
 
-    if (role === 'faculty') {
-      return [
-        ...baseLinks,
-        { name: 'Managed Courses', to: '/faculty/courses', icon: BookOpen },
-        { name: 'Mark Attendance', to: '/faculty/attendance', icon: CalendarCheck },
-        { name: 'Grade Assignments', to: '/faculty/assignments', icon: FileCheck },
-        { name: 'Student Tickets', to: '/faculty/helpdesk', icon: LifeBuoy },
-      ];
-    }
+  if (role === 'admin') {
+    return [
+      ...baseLinks,
+      { name: 'Course Directory', to: '/courses', icon: BookOpen },
+      { name: 'System Helpdesk', to: '/admin/helpdesk', icon: LifeBuoy },
+    ];
+  }
 
-    if (role === 'admin') {
-      return [
-        ...baseLinks,
-        { name: 'Course Directory', to: '/admin/courses', icon: BookOpen },
-        { name: 'System Helpdesk', to: '/admin/helpdesk', icon: LifeBuoy },
-      ];
-    }
-
-    return baseLinks;
-  };
+  return baseLinks;
+};
 
   const navLinks = getNavLinks();
 

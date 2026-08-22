@@ -5,6 +5,7 @@ import {
   getTickets,
   updateTicketStatus,
   addTicketComment,
+  assignTicket,
 } from '../controllers/ticketController.js';
 import { protect, authorize } from '../middleware/authMiddleware.js';
 
@@ -29,4 +30,8 @@ router
   .route('/:id/comments')
   .post(authorize('student', 'faculty', 'admin'), addTicketComment);
 
+router
+  .route('/:id/assign')
+  .patch(authorize('admin'), assignTicket);
+  
 export default router;

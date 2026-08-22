@@ -11,6 +11,8 @@ import FacultyDashboard from './pages/FacultyDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import StudentHelpdesk from './pages/StudentHelpdesk';
 import AdminHelpdesk from './pages/AdminHelpdesk';
+import CoursesPage from './pages/CoursesPage';
+import CourseDetailsPage from './pages/CourseDetailsPage';
 
 export default function App() {
   return (
@@ -24,6 +26,10 @@ export default function App() {
           <Route element={<ProtectedRoute />}>
             <Route element={<Layout />}>
 
+              {/* Shared Course Routes (Accessible by Student, Faculty, & Admin) */}
+              <Route path="/courses" element={<CoursesPage />} />
+              <Route path="/courses/:courseId" element={<CourseDetailsPage />} />
+
               {/* Role-Specific Student Routes */}
               <Route element={<ProtectedRoute allowedRoles={['student']} />}>
                 <Route path="/student/dashboard" element={<StudentDashboard />} />
@@ -33,6 +39,7 @@ export default function App() {
               {/* Role-Specific Faculty Routes */}
               <Route element={<ProtectedRoute allowedRoles={['faculty']} />}>
                 <Route path="/faculty/dashboard" element={<FacultyDashboard />} />
+                <Route path="/faculty/helpdesk" element={<AdminHelpdesk />} />
               </Route>
 
               {/* Role-Specific Admin Routes */}
@@ -40,6 +47,7 @@ export default function App() {
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />
                 <Route path="/admin/helpdesk" element={<AdminHelpdesk />} />
               </Route>
+
             </Route>
           </Route>
 

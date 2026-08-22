@@ -98,6 +98,44 @@ export const updateTicketStatus = asyncHandler(async (req, res) => {
 });
 
 /**
+ * @desc    Assign ticket to a faculty/staff member
+ * @route   PATCH /api/tickets/:id/assign
+ * @access  Private (Admin only)
+ */
+export const assignTicket = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { assignedTo } = req.body; // Expects Faculty/Staff User ID
+
+  if (!assignedTo) {
+    throw new ApiError(400, 'Please select a faculty member to assign');
+  }
+
+  const ticket = await Ticket.findById(id);
+  if (!ticket) {
+    throw new ApiError(404, 'Ticket not found');
+  }
+
+  ticket.assignedTo = assignedTo;
+  
+  // Auto-update status to 'In Progress' if currently 'Open'
+  if (ticket.status === 'Open') {
+    ticket.status = 'In Progress';
+  }
+
+  await ticket.save();
+
+  // Populate references for instant frontend UI sync
+  const updatedTicket = await Ticket.findById(id)
+    .populate('raisedBy', 'name email role')
+    .populate('assignedTo', 'name email role')
+    .populate('comments.sender', 'name role');
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, updatedTicket, 'Ticket assigned successfully'));
+});
+
+/**
  * @desc    Add a comment/reply to a ticket thread
  * @route   POST /api/tickets/:id/comments
  * @access  Private
