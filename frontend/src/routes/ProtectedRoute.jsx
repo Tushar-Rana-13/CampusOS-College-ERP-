@@ -4,12 +4,14 @@ import { useAuth } from '../context/AuthContext';
 
 /**
  * ProtectedRoute Wrapper
- * @param {Array<string>} allowedRoles - Optional array of permitted roles (e.g., ['student', 'admin'])
+ * Enforces authentication and role-based access control (RBAC).
+ *
+ * @param {Array<string>} allowedRoles - Permitted roles (e.g., ['student', 'faculty', 'admin'])
  */
 export default function ProtectedRoute({ allowedRoles }) {
   const { user, loading } = useAuth();
 
-  // 1. Show a clean spinner while reading session from localStorage
+  // 1. Show loading state while verifying JWT / Auth state
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-slate-50">
@@ -21,18 +23,28 @@ export default function ProtectedRoute({ allowedRoles }) {
     );
   }
 
-  // 2. Redirect to Login if unauthenticated
+  // 2. Redirect unauthenticated users to Login
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  // 3. Check Role Authorization if allowedRoles are specified
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
-    // Redirect unauthorized user to their respective default dashboard
-    const defaultRedirect = user.role === 'admin' ? '/admin/dashboard' : '/dashboard';
-    return <Navigate to={defaultRedirect} replace />;
+  // 3. Handle Role Authorization (RBAC)
+  if (allowedRoles && allowedRoles.length > 0) {
+    const isAuthorized = allowedRoles.includes(user.role);
+
+    if (!isAuthorized) {
+      // Map user role directly to their assigned portal dashboard
+      const roleDashboards = {
+        student: '/student/dashboard',
+        faculty: '/faculty/dashboard',
+        admin: '/admin/dashboard',
+      };
+
+      const fallbackRoute = roleDashboards[user.role] || '/login';
+      return <Navigate to={fallbackRoute} replace />;
+    }
   }
 
-  // 4. Render child routes if authorized
+  // 4. Authorized -> Render nested route components via Outlet
   return <Outlet />;
 }

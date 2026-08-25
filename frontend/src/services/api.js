@@ -27,12 +27,14 @@ API.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-// 3. Response Interceptor: Handle Global Network/Server Errors & 401 Unauthorized
+// 3. Response Interceptor: Safe 401 Session Cleanup
 API.interceptors.response.use(
   (response) => response,
   (error) => {
-    // Check if error response exists before inspecting HTTP status code
-    if (error.response && error.response.status === 401) {
+    const isAuthCheck = error.config?.url?.includes('/auth/login');
+
+    if (error.response && error.response.status === 401 && !isAuthCheck) {
+      // Clear invalid session
       localStorage.removeItem('campusos_user');
 
       if (window.location.pathname !== '/login') {
@@ -61,9 +63,13 @@ export const addTicketComment = (id, text) => API.post(`/tickets/${id}/comments`
 export const assignTicket = (id, assignedTo) => API.patch(`/tickets/${id}/assign`, { assignedTo });
 
 // Course Endpoints
-export const getCourses = () => API.get('/courses');
+export const getCourses = (params = {}) => API.get('/courses', { params });
 export const createCourse = (data) => API.post('/courses', data);
-export const enrollCourse = (courseId, data = {}) => API.post(`/courses/${courseId}/enroll`, data);
+export const enrollInCourse = (courseId) => API.post(`/courses/${courseId}/enroll`);
+
+// Course Material Endpoints
+export const getCourseMaterials = (courseId) => API.get(`/courses/${courseId}/materials`);
+export const addCourseMaterial = (courseId, materialData) => API.post(`/courses/${courseId}/materials`, materialData);
 
 // Assignment Endpoints
 export const createAssignment = (data) => API.post('/assignments', data);

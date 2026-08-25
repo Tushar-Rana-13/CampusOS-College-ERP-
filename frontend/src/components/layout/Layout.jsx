@@ -25,8 +25,7 @@ export default function Layout() {
     navigate('/login');
   };
 
-  // Define navigation links based on current user role
-  // Updated getNavLinks inside Layout.jsx
+// client/src/components/layout/Layout.jsx - Updated getNavLinks function
 const getNavLinks = () => {
   const role = user?.role;
   const baseLinks = [
@@ -41,6 +40,7 @@ const getNavLinks = () => {
     return [
       ...baseLinks,
       { name: 'My Courses', to: '/courses', icon: BookOpen },
+      { name: 'Course Catalog', to: '/courses/catalog', icon: BookOpen },
       { name: 'Helpdesk', to: '/student/helpdesk', icon: LifeBuoy },
     ];
   }

@@ -1,18 +1,30 @@
-import express from 'express' ;
-import {createCourse , getCourses,enrollStudent} from '../controllers/courseController.js';
-import {protect , authorize} from '../middleware/authMiddleware.js' ;
+import express from 'express';
+import {
+  createCourse,
+  getCourses,
+  enrollInCourse, 
+  addCourseMaterial,
+  getCourseMaterials,
+} from '../controllers/courseController.js';
+import { protect, authorize } from '../middleware/authMiddleware.js';
 
-const router = express.Router() ;
+const router = express.Router();
 
-router.use(protect) ;
+// Apply auth middleware to all course endpoints
+router.use(protect);
 
 router
-    .route('/')
-    .get(getCourses)
-    .post(authorize('admin'),createCourse) ;
+  .route('/')
+  .get(getCourses)
+  .post(authorize('admin', 'faculty'), createCourse);
 
 router
-    .route('/:id/enroll')
-    .post(authorize('admin', 'student'),enrollStudent) ;
+  .route('/:id/enroll')
+  .post(authorize('admin', 'student'), enrollInCourse);
 
-export default router ;
+router
+  .route('/:id/materials')
+  .get(getCourseMaterials)
+  .post(authorize('faculty', 'admin'), addCourseMaterial);
+
+export default router;

@@ -1,11 +1,13 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import Login from './pages/Login';
-import ProtectedRoute from './routes/ProtectedRoute';
+
+// Layout & Security Components
 import Layout from './components/layout/Layout';
 import ErrorBoundary from './components/common/ErrorBoundary';
+import ProtectedRoute from './routes/ProtectedRoute';
 
 // Pages
+import Login from './pages/Login';
 import StudentDashboard from './pages/StudentDashboard';
 import FacultyDashboard from './pages/FacultyDashboard';
 import AdminDashboard from './pages/AdminDashboard';
@@ -13,6 +15,7 @@ import StudentHelpdesk from './pages/StudentHelpdesk';
 import AdminHelpdesk from './pages/AdminHelpdesk';
 import CoursesPage from './pages/CoursesPage';
 import CourseDetailsPage from './pages/CourseDetailsPage';
+import CourseCatalog from './pages/CourseCatalog';
 
 export default function App() {
   return (
@@ -22,12 +25,13 @@ export default function App() {
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
 
-          {/* Protected Dashboard Shell */}
+          {/* Protected Shell: All routes inside require authentication & share Layout */}
           <Route element={<ProtectedRoute />}>
             <Route element={<Layout />}>
 
               {/* Shared Course Routes (Accessible by Student, Faculty, & Admin) */}
               <Route path="/courses" element={<CoursesPage />} />
+              <Route path="/courses/catalog" element={<CourseCatalog />} />
               <Route path="/courses/:courseId" element={<CourseDetailsPage />} />
 
               {/* Role-Specific Student Routes */}
