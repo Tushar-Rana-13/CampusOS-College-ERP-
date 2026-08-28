@@ -1,39 +1,84 @@
 // src/pages/ProfilePage.jsx
-import React, { useState } from 'react';
-import { User, Shield, GraduationCap, Building, Save, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { User, Shield, Save, CheckCircle2, AlertCircle } from 'lucide-react';
 import api from '../services/api';
 
 export default function ProfilePage({ currentUser, onUserUpdated }) {
   const [formData, setFormData] = useState({
-    name: currentUser?.name || '',
-    department: currentUser?.department || '',
-    rollNumber: currentUser?.rollNumber || '',
-    semester: currentUser?.semester || 1,
-    designation: currentUser?.designation || '',
+    name: '',
+    department: '',
+    rollNumber: '',
+    semester: 1,
+    designation: '',
   });
 
   const [saving, setSaving] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+
+  // Sync form state when currentUser prop hydrates or updates
+  useEffect(() => {
+    if (currentUser) {
+      setFormData({
+        name: currentUser.name || '',
+        department: currentUser.department || '',
+        rollNumber: currentUser.rollNumber || '',
+        semester: currentUser.semester || 1,
+        designation: currentUser.designation || '',
+      });
+    }
+  }, [currentUser]);
 
   const handleChange = (e) => {
-    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value } = e.target;
+    
+    // Convert semester to integer for clean payload schema
+    const parsedValue = name === 'semester' ? parseInt(value, 10) : value;
+
+    setFormData((prev) => ({ ...prev, [name]: parsedValue }));
     if (successMsg) setSuccessMsg('');
+    if (errorMsg) setErrorMsg('');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setSaving(true);
+    setSuccessMsg('');
+    setErrorMsg('');
+
     try {
-      setSaving(true);
-      const res = await api.put('/users/profile', formData);
-      const updated = res.data?.data || res.data;
-      if (onUserUpdated) onUserUpdated(updated);
+      // Clean payload based on user role to avoid dirty schema updates
+      const userRole = currentUser?.role?.toLowerCase();
+      const payload = {
+        name: formData.name,
+        department: formData.department,
+        ...(userRole === 'student' && {
+          rollNumber: formData.rollNumber,
+          semester: formData.semester,
+        }),
+        ...(userRole === 'faculty' && {
+          designation: formData.designation,
+        }),
+      };
+
+      const res = await api.put('/users/profile', payload);
+      const updatedUser = res.data?.data || res.data;
+
+      if (onUserUpdated) {
+        onUserUpdated(updatedUser);
+      }
       setSuccessMsg('Profile updated successfully!');
     } catch (err) {
       console.error('Failed to update profile:', err);
+      const serverMessage =
+        err.response?.data?.message || 'Failed to update profile. Please try again.';
+      setErrorMsg(serverMessage);
     } finally {
       setSaving(false);
     }
   };
+
+  const userRoleNormalized = currentUser?.role?.toLowerCase() || 'student';
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -44,7 +89,7 @@ export default function ProfilePage({ currentUser, onUserUpdated }) {
             {currentUser?.name?.charAt(0).toUpperCase() || 'U'}
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white">{currentUser?.name}</h1>
+            <h1 className="text-xl font-bold text-white">{currentUser?.name || 'User Profile'}</h1>
             <p className="text-xs text-slate-400 mt-0.5">{currentUser?.email}</p>
           </div>
         </div>
@@ -55,11 +100,18 @@ export default function ProfilePage({ currentUser, onUserUpdated }) {
         </span>
       </div>
 
-      {/* Success Notification */}
+      {/* Status Notifications */}
       {successMsg && (
         <div className="p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl flex items-center space-x-2 text-emerald-400 text-xs">
           <CheckCircle2 className="w-4 h-4 shrink-0" />
           <span>{successMsg}</span>
+        </div>
+      )}
+
+      {errorMsg && (
+        <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl flex items-center space-x-2 text-rose-400 text-xs">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span>{errorMsg}</span>
         </div>
       )}
 
@@ -75,6 +127,7 @@ export default function ProfilePage({ currentUser, onUserUpdated }) {
             <input
               type="text"
               name="name"
+              required
               value={formData.name}
               onChange={handleChange}
               className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3.5 py-2.5 text-sm text-white focus:outline-none focus:border-sky-500"
@@ -93,7 +146,7 @@ export default function ProfilePage({ currentUser, onUserUpdated }) {
           </div>
 
           {/* Role Conditional Fields */}
-          {currentUser?.role === 'student' && (
+          {userRoleNormalized === 'student' && (
             <>
               <div>
                 <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase">Roll Number</label>
@@ -123,7 +176,7 @@ export default function ProfilePage({ currentUser, onUserUpdated }) {
             </>
           )}
 
-          {currentUser?.role === 'faculty' && (
+          {userRoleNormalized === 'faculty' && (
             <div>
               <label className="block text-xs font-semibold text-slate-400 mb-1.5 uppercase">Designation</label>
               <input

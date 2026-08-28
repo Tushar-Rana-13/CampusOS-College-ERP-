@@ -14,8 +14,18 @@ import AdminDashboard from './pages/AdminDashboard';
 import StudentHelpdesk from './pages/StudentHelpdesk';
 import AdminHelpdesk from './pages/AdminHelpdesk';
 import CoursesPage from './pages/CoursesPage';
+import MyCourses from './pages/MyCourses';
 import CourseDetailsPage from './pages/CourseDetailsPage';
 import CourseCatalog from './pages/CourseCatalog';
+import { useAuth } from './context/AuthContext';
+
+function CourseRoute() {
+  const { user } = useAuth();
+
+  // Students should see only the courses in which they have an active enrollment.
+  // Faculty and admins retain the existing directory/management view.
+  return user?.role === 'student' ? <MyCourses /> : <CoursesPage user={user} />;
+}
 
 export default function App() {
   return (
@@ -30,7 +40,7 @@ export default function App() {
             <Route element={<Layout />}>
 
               {/* Shared Course Routes (Accessible by Student, Faculty, & Admin) */}
-              <Route path="/courses" element={<CoursesPage />} />
+              <Route path="/courses" element={<CourseRoute />} />
               <Route path="/courses/catalog" element={<CourseCatalog />} />
               <Route path="/courses/:courseId" element={<CourseDetailsPage />} />
 

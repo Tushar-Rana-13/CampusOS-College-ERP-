@@ -66,6 +66,7 @@ export const assignTicket = (id, assignedTo) => API.patch(`/tickets/${id}/assign
 export const getCourses = (params = {}) => API.get('/courses', { params });
 export const createCourse = (data) => API.post('/courses', data);
 export const enrollInCourse = (courseId) => API.post(`/courses/${courseId}/enroll`);
+export const dropCourse = (courseId) => API.delete(`/courses/${courseId}/drop`);
 
 // Course Material Endpoints
 export const getCourseMaterials = (courseId) => API.get(`/courses/${courseId}/materials`);

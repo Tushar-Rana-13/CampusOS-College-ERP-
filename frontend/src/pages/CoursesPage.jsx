@@ -17,7 +17,8 @@ export default function CoursesPage({ user }) {
     try {
       setLoading(true);
       const res = await getCourses();
-      setCourses(res.data?.courses || []);
+      const courseList = res.data?.data || res.data?.courses || [];
+      setCourses(Array.isArray(courseList) ? courseList : []);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to fetch courses');
     } finally {

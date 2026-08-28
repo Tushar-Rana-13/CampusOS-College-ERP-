@@ -1,10 +1,10 @@
+import mongoose from 'mongoose';
 import Course from '../models/Course.js';
 import Material from '../models/Material.js';
 import Enrollment from '../models/Enrollment.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import { ApiError } from '../utils/ApiError.js';
-import mongoose from 'mongoose';
 
 /**
  * @desc    Create a new course
@@ -18,23 +18,31 @@ export const createCourse = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'Please provide courseCode, title, department, credits, and semester');
   }
 
-  const existingCourse = await Course.findOne({ courseCode: courseCode.toUpperCase() });
-  if (existingCourse) {
-    throw new ApiError(400, `Course code '${courseCode}' already exists`);
+  const normalizedCode = courseCode.trim().toUpperCase();
+
+  // Assign faculty based on user role
+  const assignedFaculty = req.user.role === 'faculty' ? req.user._id : req.body.faculty || req.user._id;
+
+  try {
+    const course = await Course.create({
+      courseCode: normalizedCode,
+      title: title.trim(),
+      department: department.trim(),
+      credits,
+      semester: semester.trim(),
+      faculty: assignedFaculty,
+    });
+
+    return res
+      .status(201)
+      .json(new ApiResponse(201, course, 'Course created successfully'));
+  } catch (error) {
+    // Catch MongoDB duplicate key error for unique courseCode
+    if (error.code === 11000) {
+      throw new ApiError(400, `Course code '${normalizedCode}' already exists`);
+    }
+    throw error;
   }
-
-  const course = await Course.create({
-    courseCode: courseCode.toUpperCase(),
-    title: title.trim(),
-    department: department.trim(),
-    credits,
-    semester: semester.trim(),
-    faculty: req.user.role === 'faculty' ? req.user._id : req.body.faculty || req.user._id,
-  });
-
-  return res
-    .status(201)
-    .json(new ApiResponse(201, course, 'Course created successfully'));
 });
 
 /**
@@ -43,28 +51,38 @@ export const createCourse = asyncHandler(async (req, res) => {
  * @access  Private
  */
 export const getCourses = asyncHandler(async (req, res) => {
-  const { department, semester, myCourses } = req.query;
-  let query = {};
+  // FIX: Destructure 'enrolled' alongside other query parameters to prevent ReferenceError
+  const { department, semester, myCourses, enrolled } = req.query;
+  const query = {};
 
-  if (department) query.department = department;
-  if (semester) query.semester = semester;
+  if (department) query.department = department.trim();
+  if (semester) query.semester = semester.trim();
 
-  // If faculty wants only courses they teach
-  if (req.user.role === 'faculty' && myCourses === 'true') {
+  // Faculty filtering: view only self-instructed courses
+  if (req.user?.role === 'faculty' && myCourses === 'true') {
     query.faculty = req.user._id;
   }
 
-  // Fetch enrolled course IDs if student requests myCourses
   let enrolledCourseIds = [];
-  if (req.user.role === 'student') {
-    const studentEnrollments = await Enrollment.find({ 
-      student: req.user._id, 
-      status: 'enrolled' 
+
+  // Student filtering: resolve active enrollments safely
+  if (req.user?.role === 'student') {
+    const studentEnrollments = await Enrollment.find({
+      student: req.user._id,
+      status: 'enrolled',
     }).select('course');
 
-    enrolledCourseIds = studentEnrollments.map((e) => e.course.toString());
+    enrolledCourseIds = studentEnrollments
+      .filter((e) => e.course) // Guard against null references if a course was deleted
+      .map((e) => e.course.toString());
 
-    if (myCourses === 'true') {
+    // If filtering specifically for enrolled courses
+    if (myCourses === 'true' || enrolled === 'true') {
+      if (enrolledCourseIds.length === 0) {
+        return res
+          .status(200)
+          .json(new ApiResponse(200, [], 'No enrolled courses found'));
+      }
       query._id = { $in: enrolledCourseIds };
     }
   }
@@ -72,9 +90,9 @@ export const getCourses = asyncHandler(async (req, res) => {
   const courses = await Course.find(query)
     .populate('faculty', 'name email department')
     .sort({ courseCode: 1 })
-    .lean(); // Return plain JS objects so we can attach custom flags
+    .lean();
 
-  // Attach `isEnrolled` boolean flag for student requests
+  // Augment response with dynamic isEnrolled metadata flag for the frontend UI
   const formattedCourses = courses.map((course) => ({
     ...course,
     isEnrolled: enrolledCourseIds.includes(course._id.toString()),
@@ -86,24 +104,17 @@ export const getCourses = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Enroll student in a course (Creates/Updates junction record in Enrollment collection)
+ * @desc    Enroll student in a course
  * @route   POST /api/courses/:id/enroll
  * @access  Private (Student)
  */
 export const enrollInCourse = asyncHandler(async (req, res) => {
   const { id: courseId } = req.params;
 
-  // 1. Guard check for authenticated user
-  if (!req.user || !req.user._id) {
-    throw new ApiError(401, 'Authentication required. Student profile not found.');
-  }
-
-  // 2. Validate MongoDB ObjectId format before querying
   if (!mongoose.Types.ObjectId.isValid(courseId)) {
     throw new ApiError(400, 'Invalid course ID format.');
   }
 
-  // 3. Find course and verify it is active
   const course = await Course.findById(courseId);
   if (!course) {
     throw new ApiError(404, 'Course not found.');
@@ -113,19 +124,17 @@ export const enrollInCourse = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'This course is currently inactive and not accepting enrollments.');
   }
 
-  // 4. Check for existing enrollment record
   let enrollment = await Enrollment.findOne({
     student: req.user._id,
     course: courseId,
   });
 
   if (enrollment) {
-    // Handle case where student previously dropped but wants to re-enroll
     if (enrollment.status === 'enrolled') {
       throw new ApiError(400, 'You are already enrolled in this course.');
     }
 
-    // Reactivate enrollment if previously dropped
+    // Reactivate previously dropped enrollment
     enrollment.status = 'enrolled';
     await enrollment.save();
 
@@ -134,7 +143,6 @@ export const enrollInCourse = asyncHandler(async (req, res) => {
       .json(new ApiResponse(200, enrollment, `Re-enrolled in ${course.courseCode} successfully`));
   }
 
-  // 5. Create new enrollment record
   try {
     enrollment = await Enrollment.create({
       student: req.user._id,
@@ -142,7 +150,6 @@ export const enrollInCourse = asyncHandler(async (req, res) => {
       status: 'enrolled',
     });
   } catch (err) {
-    // Handle edge-case race conditions for MongoDB unique compound index
     if (err.code === 11000) {
       throw new ApiError(400, 'You are already enrolled in this course.');
     }
@@ -152,6 +159,36 @@ export const enrollInCourse = asyncHandler(async (req, res) => {
   return res
     .status(201)
     .json(new ApiResponse(201, enrollment, `Enrolled in ${course.courseCode} successfully`));
+});
+
+/**
+ * @desc    Drop an enrolled course
+ * @route   DELETE /api/courses/:id/drop
+ * @access  Private (Student)
+ */
+export const dropCourse = asyncHandler(async (req, res) => {
+  const { id: courseId } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(courseId)) {
+    throw new ApiError(400, 'Invalid course ID format.');
+  }
+
+  const enrollment = await Enrollment.findOne({
+    student: req.user._id,
+    course: courseId,
+    status: 'enrolled',
+  });
+
+  if (!enrollment) {
+    throw new ApiError(404, 'Active enrollment record not found for this course.');
+  }
+
+  enrollment.status = 'dropped';
+  await enrollment.save();
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, enrollment, 'Course dropped successfully.'));
 });
 
 /**
@@ -172,6 +209,7 @@ export const addCourseMaterial = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Course not found');
   }
 
+  // Authorize faculty ownership check
   if (req.user.role === 'faculty' && course.faculty.toString() !== req.user._id.toString()) {
     throw new ApiError(403, 'Not authorized to add materials to this course');
   }
@@ -198,6 +236,10 @@ export const addCourseMaterial = asyncHandler(async (req, res) => {
 export const getCourseMaterials = asyncHandler(async (req, res) => {
   const { id: courseId } = req.params;
 
+  if (!mongoose.Types.ObjectId.isValid(courseId)) {
+    throw new ApiError(400, 'Invalid course ID format.');
+  }
+
   const course = await Course.findById(courseId);
   if (!course) {
     throw new ApiError(404, 'Course not found');
@@ -205,7 +247,8 @@ export const getCourseMaterials = asyncHandler(async (req, res) => {
 
   const materials = await Material.find({ course: courseId })
     .populate('uploadedBy', 'name role')
-    .sort({ createdAt: -1 });
+    .sort({ createdAt: -1 })
+    .lean();
 
   return res
     .status(200)

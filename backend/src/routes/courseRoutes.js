@@ -3,6 +3,7 @@ import {
   createCourse,
   getCourses,
   enrollInCourse, 
+  dropCourse,
   addCourseMaterial,
   getCourseMaterials,
 } from '../controllers/courseController.js';
@@ -21,6 +22,10 @@ router
 router
   .route('/:id/enroll')
   .post(authorize('admin', 'student'), enrollInCourse);
+
+router
+  .route('/:id/drop')
+  .delete(authorize('student'), dropCourse);
 
 router
   .route('/:id/materials')
