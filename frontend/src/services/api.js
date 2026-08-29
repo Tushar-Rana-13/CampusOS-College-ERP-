@@ -8,6 +8,7 @@ const API = axios.create({
   },
 });
 
+
 // 2. Request Interceptor: Attach JWT Bearer Token dynamically
 API.interceptors.request.use(
   (config) => {
@@ -49,10 +50,34 @@ API.interceptors.response.use(
 // 📦 API Endpoint Collections
 // -----------------------------------------------------------------------------
 
+// Authentication Endpoints
+export const loginUser = (credentials) => API.post('/auth/login', credentials);
+export const registerUser = (userData) => API.post('/auth/register', userData);
+export const getProfile = () => API.get('/auth/profile');
+
 // Dashboard Endpoints
 export const getStudentDashboardData = () => API.get('/dashboard/student');
 export const getFacultyDashboardData = () => API.get('/dashboard/faculty');
 export const getAdminDashboardData = () => API.get('/dashboard/admin');
+
+// Course Endpoints
+export const getCourses = (params = {}) => API.get('/courses', { params });
+export const getCourseDetails = (courseId) => API.get(`/courses/${courseId}`);
+export const createCourse = (data) => API.post('/courses', data);
+export const updateCourse = (courseId, data) => API.put(`/courses/${courseId}`, data);
+export const deleteCourse = (courseId) => API.delete(`/courses/${courseId}`);
+export const enrollInCourse = (courseId) => API.post(`/courses/${courseId}/enroll`);
+export const dropCourse = (courseId) => API.delete(`/courses/${courseId}/drop`);
+
+// Course Material Endpoints
+export const getCourseMaterials = (courseId) => API.get(`/courses/${courseId}/materials`);
+export const addCourseMaterial = (courseId, materialData) => API.post(`/courses/${courseId}/materials`, materialData);
+export const deleteCourseMaterial = (courseId, materialId) => API.delete(`/courses/${courseId}/materials/${materialId}`);
+
+// Assignment Endpoints
+export const createAssignment = (data) => API.post('/assignments', data);
+export const getCourseAssignments = (courseId) => API.get(`/assignments/course/${courseId}`);
+export const submitAssignment = (id, data) => API.post(`/assignments/${id}/submit`, data);
 
 // Helpdesk & Support Ticket Endpoints
 export const getTickets = () => API.get('/tickets');
@@ -61,21 +86,6 @@ export const createTicket = (ticketData) => API.post('/tickets', ticketData);
 export const updateTicket = (id, ticketData) => API.put(`/tickets/${id}`, ticketData);
 export const addTicketComment = (id, text) => API.post(`/tickets/${id}/comments`, { text });
 export const assignTicket = (id, assignedTo) => API.patch(`/tickets/${id}/assign`, { assignedTo });
-
-// Course Endpoints
-export const getCourses = (params = {}) => API.get('/courses', { params });
-export const createCourse = (data) => API.post('/courses', data);
-export const enrollInCourse = (courseId) => API.post(`/courses/${courseId}/enroll`);
-export const dropCourse = (courseId) => API.delete(`/courses/${courseId}/drop`);
-
-// Course Material Endpoints
-export const getCourseMaterials = (courseId) => API.get(`/courses/${courseId}/materials`);
-export const addCourseMaterial = (courseId, materialData) => API.post(`/courses/${courseId}/materials`, materialData);
-
-// Assignment Endpoints
-export const createAssignment = (data) => API.post('/assignments', data);
-export const getCourseAssignments = (courseId) => API.get(`/assignments/course/${courseId}`);
-export const submitAssignment = (id, data) => API.post(`/assignments/${id}/submit`, data);
 
 // User Management Endpoints
 export const getFacultyList = () => API.get('/users?role=faculty');

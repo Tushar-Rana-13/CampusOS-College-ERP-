@@ -2,7 +2,8 @@ import express from 'express';
 import {
   createCourse,
   getCourses,
-  enrollInCourse, 
+  getCourseDetails,
+  enrollInCourse,
   dropCourse,
   addCourseMaterial,
   getCourseMaterials,
@@ -18,6 +19,10 @@ router
   .route('/')
   .get(getCourses)
   .post(authorize('admin', 'faculty'), createCourse);
+
+router
+  .route('/:id')
+  .get(getCourseDetails);
 
 router
   .route('/:id/enroll')

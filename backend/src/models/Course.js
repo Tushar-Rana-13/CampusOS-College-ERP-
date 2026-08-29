@@ -34,6 +34,12 @@ const courseSchema = new mongoose.Schema(
       type: String,
       required: [true, 'Semester is required'], // e.g., "Fall 2026", "Spring 2026"
     },
+    maxStudents: {
+      type: Number,
+      default: 60,
+      min: [1, 'Course must support at least 1 student'],
+      max: [500, 'Course seat capacity cannot exceed 500'],
+    },
     isActive: {
       type: Boolean,
       default: true,
@@ -49,4 +55,4 @@ courseSchema.index({ department: 1, semester: 1 });
 
 const Course = mongoose.model('Course', courseSchema);
 
-export default Course;   
+export default Course;

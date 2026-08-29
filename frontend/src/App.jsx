@@ -1,3 +1,5 @@
+// client/src/App.jsx
+
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
@@ -10,6 +12,7 @@ import ProtectedRoute from './routes/ProtectedRoute';
 import Login from './pages/Login';
 import StudentDashboard from './pages/StudentDashboard';
 import FacultyDashboard from './pages/FacultyDashboard';
+import FacultyCourses from './pages/FacultyCourses'; // <-- IMPORT FACULTY COURSES
 import AdminDashboard from './pages/AdminDashboard';
 import StudentHelpdesk from './pages/StudentHelpdesk';
 import AdminHelpdesk from './pages/AdminHelpdesk';
@@ -21,9 +24,6 @@ import { useAuth } from './context/AuthContext';
 
 function CourseRoute() {
   const { user } = useAuth();
-
-  // Students should see only the courses in which they have an active enrollment.
-  // Faculty and admins retain the existing directory/management view.
   return user?.role === 'student' ? <MyCourses /> : <CoursesPage user={user} />;
 }
 
@@ -35,28 +35,29 @@ export default function App() {
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
 
-          {/* Protected Shell: All routes inside require authentication & share Layout */}
+          {/* Protected Shell */}
           <Route element={<ProtectedRoute />}>
             <Route element={<Layout />}>
 
-              {/* Shared Course Routes (Accessible by Student, Faculty, & Admin) */}
+              {/* Shared Course Routes */}
               <Route path="/courses" element={<CourseRoute />} />
               <Route path="/courses/catalog" element={<CourseCatalog />} />
               <Route path="/courses/:courseId" element={<CourseDetailsPage />} />
 
-              {/* Role-Specific Student Routes */}
+              {/* Student Routes */}
               <Route element={<ProtectedRoute allowedRoles={['student']} />}>
                 <Route path="/student/dashboard" element={<StudentDashboard />} />
                 <Route path="/student/helpdesk" element={<StudentHelpdesk />} />
               </Route>
 
-              {/* Role-Specific Faculty Routes */}
+              {/* Faculty Routes */}
               <Route element={<ProtectedRoute allowedRoles={['faculty']} />}>
                 <Route path="/faculty/dashboard" element={<FacultyDashboard />} />
+                <Route path="/faculty/courses" element={<FacultyCourses />} /> {/* <-- ADDED ROUTE HERE */}
                 <Route path="/faculty/helpdesk" element={<AdminHelpdesk />} />
               </Route>
 
-              {/* Role-Specific Admin Routes */}
+              {/* Admin Routes */}
               <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
                 <Route path="/admin/dashboard" element={<AdminDashboard />} />
                 <Route path="/admin/helpdesk" element={<AdminHelpdesk />} />
@@ -65,7 +66,7 @@ export default function App() {
             </Route>
           </Route>
 
-          {/* Catch-all Fallback */}
+          {/* Fallback */}
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Router>

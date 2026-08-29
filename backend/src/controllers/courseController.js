@@ -12,7 +12,7 @@ import { ApiError } from '../utils/ApiError.js';
  * @access  Private (Faculty, Admin)
  */
 export const createCourse = asyncHandler(async (req, res) => {
-  const { courseCode, title, department, credits, semester } = req.body;
+  const { courseCode, title, department, credits, semester, maxStudents } = req.body;
 
   if (!courseCode || !title || !department || !credits || !semester) {
     throw new ApiError(400, 'Please provide courseCode, title, department, credits, and semester');
@@ -30,6 +30,7 @@ export const createCourse = asyncHandler(async (req, res) => {
       department: department.trim(),
       credits,
       semester: semester.trim(),
+      maxStudents: maxStudents || 60,
       faculty: assignedFaculty,
     });
 
@@ -37,7 +38,6 @@ export const createCourse = asyncHandler(async (req, res) => {
       .status(201)
       .json(new ApiResponse(201, course, 'Course created successfully'));
   } catch (error) {
-    // Catch MongoDB duplicate key error for unique courseCode
     if (error.code === 11000) {
       throw new ApiError(400, `Course code '${normalizedCode}' already exists`);
     }
@@ -46,26 +46,23 @@ export const createCourse = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Get all courses (with optional department/semester filtering & enrollment status)
+ * @desc    Get all courses (with department/semester filtering, enrollment status, & dynamic seat count)
  * @route   GET /api/courses
  * @access  Private
  */
 export const getCourses = asyncHandler(async (req, res) => {
-  // FIX: Destructure 'enrolled' alongside other query parameters to prevent ReferenceError
   const { department, semester, myCourses, enrolled } = req.query;
   const query = {};
 
   if (department) query.department = department.trim();
   if (semester) query.semester = semester.trim();
 
-  // Faculty filtering: view only self-instructed courses
   if (req.user?.role === 'faculty' && myCourses === 'true') {
     query.faculty = req.user._id;
   }
 
   let enrolledCourseIds = [];
 
-  // Student filtering: resolve active enrollments safely
   if (req.user?.role === 'student') {
     const studentEnrollments = await Enrollment.find({
       student: req.user._id,
@@ -73,10 +70,9 @@ export const getCourses = asyncHandler(async (req, res) => {
     }).select('course');
 
     enrolledCourseIds = studentEnrollments
-      .filter((e) => e.course) // Guard against null references if a course was deleted
+      .filter((e) => e.course)
       .map((e) => e.course.toString());
 
-    // If filtering specifically for enrolled courses
     if (myCourses === 'true' || enrolled === 'true') {
       if (enrolledCourseIds.length === 0) {
         return res
@@ -92,11 +88,29 @@ export const getCourses = asyncHandler(async (req, res) => {
     .sort({ courseCode: 1 })
     .lean();
 
-  // Augment response with dynamic isEnrolled metadata flag for the frontend UI
-  const formattedCourses = courses.map((course) => ({
-    ...course,
-    isEnrolled: enrolledCourseIds.includes(course._id.toString()),
-  }));
+  // Compute active enrollment counts per course efficiently
+  const courseIds = courses.map((c) => c._id);
+  const enrollmentCounts = await Enrollment.aggregate([
+    { $match: { course: { $in: courseIds }, status: 'enrolled' } },
+    { $group: { _id: '$course', count: { $sum: 1 } } },
+  ]);
+
+  const countMap = enrollmentCounts.reduce((acc, curr) => {
+    acc[curr._id.toString()] = curr.count;
+    return acc;
+  }, {});
+
+  // Augment courses with isEnrolled and seat counts
+  const formattedCourses = courses.map((course) => {
+    const activeCount = countMap[course._id.toString()] || 0;
+    const capacity = course.maxStudents || 60;
+    return {
+      ...course,
+      enrolledCount: activeCount,
+      isFull: activeCount >= capacity,
+      isEnrolled: enrolledCourseIds.includes(course._id.toString()),
+    };
+  });
 
   return res
     .status(200)
@@ -104,7 +118,60 @@ export const getCourses = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Enroll student in a course
+ * @desc    Get single course details by ID
+ * @route   GET /api/courses/:id
+ * @access  Private
+ */
+export const getCourseDetails = asyncHandler(async (req, res) => {
+  const { id: courseId } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(courseId)) {
+    throw new ApiError(400, 'Invalid course ID format.');
+  }
+
+  const course = await Course.findById(courseId)
+    .populate('faculty', 'name email department')
+    .lean();
+
+  if (!course) {
+    throw new ApiError(404, 'Course not found.');
+  }
+
+  // Count total enrolled students
+  const enrolledCount = await Enrollment.countDocuments({
+    course: courseId,
+    status: 'enrolled',
+  });
+
+  // Check current user enrollment status
+  let isEnrolled = false;
+  if (req.user?.role === 'student') {
+    const existingEnrollment = await Enrollment.findOne({
+      student: req.user._id,
+      course: courseId,
+      status: 'enrolled',
+    });
+    isEnrolled = Boolean(existingEnrollment);
+  }
+
+  const capacity = course.maxStudents || 60;
+
+  return res.status(200).json(
+    new ApiResponse(
+      200,
+      {
+        ...course,
+        enrolledCount,
+        isFull: enrolledCount >= capacity,
+        isEnrolled,
+      },
+      'Course details fetched successfully'
+    )
+  );
+});
+
+/**
+ * @desc    Enroll student in a course (with seat capacity validation)
  * @route   POST /api/courses/:id/enroll
  * @access  Private (Student)
  */
@@ -124,6 +191,17 @@ export const enrollInCourse = asyncHandler(async (req, res) => {
     throw new ApiError(400, 'This course is currently inactive and not accepting enrollments.');
   }
 
+  // Seat Capacity Check
+  const activeEnrollments = await Enrollment.countDocuments({
+    course: courseId,
+    status: 'enrolled',
+  });
+
+  const capacity = course.maxStudents || 60;
+  if (activeEnrollments >= capacity) {
+    throw new ApiError(400, `Enrollment failed. This course has reached its capacity limit of ${capacity} students.`);
+  }
+
   let enrollment = await Enrollment.findOne({
     student: req.user._id,
     course: courseId,
@@ -134,7 +212,6 @@ export const enrollInCourse = asyncHandler(async (req, res) => {
       throw new ApiError(400, 'You are already enrolled in this course.');
     }
 
-    // Reactivate previously dropped enrollment
     enrollment.status = 'enrolled';
     await enrollment.save();
 
@@ -209,7 +286,6 @@ export const addCourseMaterial = asyncHandler(async (req, res) => {
     throw new ApiError(404, 'Course not found');
   }
 
-  // Authorize faculty ownership check
   if (req.user.role === 'faculty' && course.faculty.toString() !== req.user._id.toString()) {
     throw new ApiError(403, 'Not authorized to add materials to this course');
   }
