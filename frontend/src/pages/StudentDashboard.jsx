@@ -1,5 +1,3 @@
-// client/src/pages/StudentDashboard.jsx
-
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { getStudentDashboardData } from '../services/api';
@@ -17,26 +15,39 @@ import { Link } from 'react-router-dom';
 
 export default function StudentDashboard() {
   const { user } = useAuth();
-  const [data, setData] = useState(null);
+  const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    let isMounted = true;
 
-  const fetchDashboardData = async () => {
-    try {
-      setLoading(true);
-      const res = await getStudentDashboardData();
-      setData(res.data.data || res.data);
-    } catch (err) {
-      console.error('Failed to fetch dashboard data:', err);
-      setError('Unable to load dashboard metrics. Please check backend API.');
-    } finally {
-      setLoading(false);
-    }
-  };
+    const fetchDashboard = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await getStudentDashboardData();
+        // Unwrap Axios payload safely
+        const payload = res.data?.data || res.data;
+        if (isMounted) setDashboardData(payload);
+      } catch (err) {
+        if (isMounted) {
+          console.error('Failed to fetch dashboard data:', err);
+          setError(
+            err.response?.data?.message || 'Unable to load dashboard metrics. Please check backend API.'
+          );
+        }
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    fetchDashboard();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   if (loading) {
     return (
@@ -67,10 +78,11 @@ export default function StudentDashboard() {
     );
   }
 
+  const summary = dashboardData?.summary || {};
   const stats = [
     {
       title: 'Enrolled Courses',
-      value: data?.summary?.enrolledCoursesCount ?? 0,
+      value: summary.enrolledCoursesCount ?? 0,
       icon: BookOpen,
       color: 'text-sky-400',
       bgColor: 'bg-sky-500/10',
@@ -78,7 +90,7 @@ export default function StudentDashboard() {
     },
     {
       title: 'Avg. Attendance',
-      value: `${data?.summary?.overallAttendancePercentage ?? 0}%`,
+      value: `${summary.overallAttendancePercentage ?? 0}%`,
       icon: CalendarCheck,
       color: 'text-emerald-400',
       bgColor: 'bg-emerald-500/10',
@@ -86,7 +98,7 @@ export default function StudentDashboard() {
     },
     {
       title: 'Pending Assignments',
-      value: data?.summary?.pendingAssignmentsCount ?? 0,
+      value: summary.pendingAssignmentsCount ?? 0,
       icon: FileText,
       color: 'text-amber-400',
       bgColor: 'bg-amber-500/10',
@@ -94,7 +106,7 @@ export default function StudentDashboard() {
     },
     {
       title: 'Open Support Tickets',
-      value: data?.openTicketsCount ?? 0,
+      value: dashboardData?.openTicketsCount ?? 0,
       icon: LifeBuoy,
       color: 'text-purple-400',
       bgColor: 'bg-purple-500/10',
@@ -102,12 +114,15 @@ export default function StudentDashboard() {
     },
   ];
 
+  const announcements = dashboardData?.recentAnnouncements || [];
+  const courses = dashboardData?.enrolledCourses || [];
+
   return (
     <div className="space-y-8">
       {/* Welcome Banner */}
       <div>
         <h1 className="text-3xl font-bold text-white tracking-tight">
-          Welcome back, {user?.name}! 👋
+          Welcome back, {user?.name || 'Student'}! 👋
         </h1>
         <p className="text-slate-400 text-sm mt-1">
           Here is your academic overview and campus notifications for today.
@@ -148,29 +163,25 @@ export default function StudentDashboard() {
             </div>
           </div>
 
-          {!data?.recentAnnouncements || data.recentAnnouncements.length === 0 ? (
+          {announcements.length === 0 ? (
             <div className="text-center py-8 text-slate-400">
               <p className="text-sm">No recent campus announcements.</p>
             </div>
           ) : (
             <div className="space-y-3">
-              {data.recentAnnouncements.map((announcement) => (
+              {announcements.map((item) => (
                 <div
-                  key={announcement._id}
+                  key={item._id}
                   className="p-4 bg-slate-900/50 border border-slate-700/40 rounded-xl space-y-1 hover:border-slate-600 transition"
                 >
                   <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-slate-200 text-sm">
-                      {announcement.title}
-                    </h3>
+                    <h3 className="font-semibold text-slate-200 text-sm">{item.title}</h3>
                     <span className="text-xs text-slate-400 flex items-center">
                       <Clock className="w-3 h-3 inline mr-1 text-slate-500" />
-                      {new Date(announcement.createdAt).toLocaleDateString()}
+                      {new Date(item.createdAt).toLocaleDateString()}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-400 line-clamp-2">
-                    {announcement.content}
-                  </p>
+                  <p className="text-xs text-slate-400 line-clamp-2">{item.content}</p>
                 </div>
               ))}
             </div>
@@ -187,19 +198,18 @@ export default function StudentDashboard() {
               </div>
             </div>
 
-            {!data?.enrolledCourses || data.enrolledCourses.length === 0 ? (
+            {courses.length === 0 ? (
               <div className="text-center py-8 text-slate-400">
                 <p className="text-sm">Not enrolled in any courses yet.</p>
               </div>
             ) : (
               <div className="space-y-2.5">
-                {data.enrolledCourses.map((course) => (
+                {courses.map((course) => (
                   <div
                     key={course._id}
                     className="p-3 bg-slate-900/50 border border-slate-700/40 rounded-xl flex items-center justify-between"
                   >
                     <div>
-                      {/* Flexibly read 'title' or 'name', 'courseCode' or 'code' */}
                       <p className="text-sm font-semibold text-white">
                         {course.title || course.name}
                       </p>

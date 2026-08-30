@@ -6,6 +6,7 @@ const submissionSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Assignment',
       required: [true, 'Assignment reference is required'],
+      index: true,
     },
     student: {
       type: mongoose.Schema.Types.ObjectId,
@@ -15,6 +16,7 @@ const submissionSchema = new mongoose.Schema(
     submissionText: {
       type: String,
       trim: true,
+      maxlength: [2000, 'Submission text cannot exceed 2000 characters'],
     },
     fileUrl: {
       type: String,
@@ -26,7 +28,10 @@ const submissionSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['Submitted', 'Late', 'Graded'],
+      enum: {
+        values: ['Submitted', 'Late', 'Graded'],
+        message: '{VALUE} is not a valid submission status',
+      },
       default: 'Submitted',
     },
     marksObtained: {
@@ -36,10 +41,11 @@ const submissionSchema = new mongoose.Schema(
     feedback: {
       type: String,
       trim: true,
+      maxlength: [1000, 'Feedback cannot exceed 1000 characters'],
     },
     gradedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User', // Reference to Faculty member who graded
+      ref: 'User',
     },
     gradedAt: {
       type: Date,
@@ -50,10 +56,10 @@ const submissionSchema = new mongoose.Schema(
   }
 );
 
-// Enforce 1 submission record per student per assignment
+// Enforce single submission per student per assignment
 submissionSchema.index({ assignment: 1, student: 1 }, { unique: true });
 
-// Optimize lookups for student dashboard queries
+// Efficient lookups for student dashboard history
 submissionSchema.index({ student: 1 });
 
 const Submission = mongoose.model('Submission', submissionSchema);

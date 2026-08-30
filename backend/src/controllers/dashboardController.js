@@ -1,9 +1,11 @@
+// controllers/dashboardController.js
+
 import Course from '../models/Course.js';
 import Enrollment from '../models/Enrollment.js';
 import Attendance from '../models/Attendance.js';
 import Assignment from '../models/Assignment.js';
 import Submission from '../models/Submission.js';
-import {User} from '../models/User.js'; // Fixed import: Default import matching User.js
+import { User } from '../models/User.js';
 import Announcement from '../models/Announcement.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
@@ -16,10 +18,10 @@ import { ApiResponse } from '../utils/ApiResponse.js';
 export const getStudentDashboard = asyncHandler(async (req, res) => {
   const studentId = req.user._id;
 
-  // Execute concurrent aggregation queries
+  // 1. Concurrent DB queries for optimal performance
   const [enrollments, totalAttendanceRecords, presentAttendanceRecords, recentAnnouncements] =
     await Promise.all([
-      // 1. Fetch actively enrolled courses
+      // Fetch actively enrolled courses with populated faculty details
       Enrollment.find({ student: studentId, status: 'enrolled' })
         .populate({
           path: 'course',
@@ -27,32 +29,35 @@ export const getStudentDashboard = asyncHandler(async (req, res) => {
         })
         .lean(),
 
-      // 2. Count total attendance sessions recorded
+      // Total attendance sessions recorded for this student
       Attendance.countDocuments({ student: studentId }),
 
-      // 3. Count attended sessions (Present or Late)
+      // Attended sessions (Present or Late)
       Attendance.countDocuments({
         student: studentId,
         status: { $in: ['Present', 'Late'] },
       }),
 
-      // 4. Fetch top 3 latest announcements targetted to students or global
+      // Top 3 latest announcements for students or global campus
       Announcement.find({
-        targetAudience: { $in: ['all', 'student'] },
+        $or: [
+          { targetAudience: { $in: ['all', 'student'] } },
+          { targetRole: { $in: ['all', 'student'] } },
+        ],
       })
         .sort({ createdAt: -1 })
         .limit(3)
         .lean(),
     ]);
 
-  // Safely extract populated course instances (guarding against orphaned records)
+  // Guard against orphaned enrollment references (deleted courses)
   const validCourses = enrollments
-    .filter((e) => e.course !== null)
+    .filter((e) => e.course !== null && e.course !== undefined)
     .map((e) => e.course);
 
   const enrolledCourseIds = validCourses.map((c) => c._id);
 
-  // 5. Fetch upcoming assignments for active enrolled courses
+  // 2. Fetch upcoming assignments for active enrolled courses
   const activeAssignments = await Assignment.find({
     course: { $in: enrolledCourseIds },
     dueDate: { $gte: new Date() },
@@ -60,7 +65,7 @@ export const getStudentDashboard = asyncHandler(async (req, res) => {
     .select('_id title dueDate course maxMarks')
     .lean();
 
-  // 6. Cross-reference submissions to identify pending tasks
+  // 3. Identify completed vs. pending assignments
   const activeAssignmentIds = activeAssignments.map((a) => a._id);
   const studentSubmissions = await Submission.find({
     student: studentId,
@@ -77,6 +82,7 @@ export const getStudentDashboard = asyncHandler(async (req, res) => {
     (a) => !submittedAssignmentIds.has(a._id.toString())
   );
 
+  // 4. Calculate overall attendance percentage
   const overallAttendancePercentage =
     totalAttendanceRecords > 0
       ? Math.round((presentAttendanceRecords / totalAttendanceRecords) * 100)

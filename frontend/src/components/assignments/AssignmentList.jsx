@@ -1,94 +1,45 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   BookOpen, 
   Clock, 
   Plus, 
   Upload, 
   CheckCircle2, 
-  X,
-  FileText
+  Users
 } from 'lucide-react';
-import { getCourseAssignments, submitAssignment } from '../../services/api';
+import { getCourseAssignments } from '../../services/api';
 import CreateAssignmentModal from './CreateAssignmentModal';
+import SubmitAssignmentModal from './SubmitAssignmentModal';
 
-export default function AssignmentList({ courseId, userRole = 'student' }) {
+export default function AssignmentList({ courseId, userRole = 'student', onSelectGrading }) {
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  // Submission Modal State (Student)
+  // Modals State
   const [selectedAssignment, setSelectedAssignment] = useState(null);
-  const [submissionText, setSubmissionText] = useState('');
-  const [fileUrl, setFileUrl] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [submitMsg, setSubmitMsg] = useState({ type: '', text: '' });
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  // Faculty Modal State
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
-  useEffect(() => {
-    if (courseId) {
-      fetchAssignments();
-    }
-  }, [courseId]);
-
-  const fetchAssignments = async () => {
+  /**
+   * Safe fetch wrapped in useCallback to avoid react hooks dependency warnings
+   */
+  const fetchAssignments = useCallback(async () => {
+    if (!courseId) return;
     try {
       setLoading(true);
       setError('');
       const res = await getCourseAssignments(courseId);
-      setAssignments(res.data?.assignments || []);
+      setAssignments(res.data?.assignments || res.data || []);
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to load assignments.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [courseId]);
 
-  const handleOpenSubmissionModal = (assignment) => {
-    setSelectedAssignment(assignment);
-    setSubmissionText('');
-    setFileUrl('');
-    setSubmitMsg({ type: '', text: '' });
-  };
-
-  const handleSubmitWork = async (e) => {
-    e.preventDefault();
-    if (!submissionText.trim() && !fileUrl.trim()) {
-      setSubmitMsg({ type: 'error', text: 'Provide text notes or a file URL.' });
-      return;
-    }
-
-    try {
-      setSubmitting(true);
-      setSubmitMsg({ type: '', text: '' });
-
-      const res = await submitAssignment(selectedAssignment._id, {
-        submissionText: submissionText.trim(),
-        fileUrl: fileUrl.trim(),
-      });
-
-      setSubmitMsg({ 
-        type: 'success', 
-        text: res.data?.message || 'Assignment submitted successfully!' 
-      });
-
-      // Refetch assignments to reflect updated status
-      fetchAssignments();
-
-      // Automatically close modal after brief delay
-      setTimeout(() => {
-        setSelectedAssignment(null);
-      }, 1500);
-    } catch (err) {
-      setSubmitMsg({
-        type: 'error',
-        text: err.response?.data?.message || 'Submission failed. Please try again.',
-      });
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  useEffect(() => {
+    fetchAssignments();
+  }, [fetchAssignments]);
 
   if (loading) {
     return (
@@ -105,13 +56,13 @@ export default function AssignmentList({ courseId, userRole = 'student' }) {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-lg font-bold text-white">Course Assignments</h2>
-          <p className="text-xs text-slate-400">Manage coursework and turn in submissions</p>
+          <p className="text-xs text-slate-400">Manage coursework, submissions, and evaluations</p>
         </div>
 
         {(userRole === 'faculty' || userRole === 'admin') && (
           <button
-            onClick={() => setIsModalOpen(true)}
-            className="flex items-center space-x-2 bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-xl text-xs font-semibold transition"
+            onClick={() => setIsCreateModalOpen(true)}
+            className="flex items-center space-x-2 bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded-xl text-xs font-semibold transition shadow-sm"
           >
             <Plus className="w-4 h-4" />
             <span>Create Assignment</span>
@@ -135,7 +86,7 @@ export default function AssignmentList({ courseId, userRole = 'student' }) {
         <div className="grid gap-4 md:grid-cols-2">
           {assignments.map((item) => {
             const isPastDue = new Date(item.dueDate) < new Date();
-            const hasSubmitted = item.isSubmitted || item.mySubmission; // Backend boolean flag or object
+            const hasSubmitted = item.isSubmitted || Boolean(item.mySubmission);
 
             return (
               <div
@@ -179,10 +130,10 @@ export default function AssignmentList({ courseId, userRole = 'student' }) {
                   </div>
                 </div>
 
-                {/* Footer Action for Students */}
+                {/* Student Actions */}
                 {userRole === 'student' && (
                   <button
-                    onClick={() => handleOpenSubmissionModal(item)}
+                    onClick={() => setSelectedAssignment(item)}
                     className={`w-full py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center space-x-2 transition ${
                       hasSubmitted
                         ? 'bg-slate-800 hover:bg-slate-700 text-slate-300'
@@ -199,6 +150,17 @@ export default function AssignmentList({ courseId, userRole = 'student' }) {
                     </span>
                   </button>
                 )}
+
+                {/* Faculty / Admin Actions */}
+                {(userRole === 'faculty' || userRole === 'admin') && (
+                  <button
+                    onClick={() => onSelectGrading && onSelectGrading(item)}
+                    className="w-full py-2 px-3 bg-slate-800 hover:bg-slate-700 text-sky-400 rounded-xl text-xs font-semibold flex items-center justify-center space-x-2 border border-slate-700 transition"
+                  >
+                    <Users className="w-3.5 h-3.5" />
+                    <span>View Student Submissions</span>
+                  </button>
+                )}
               </div>
             );
           })}
@@ -207,98 +169,18 @@ export default function AssignmentList({ courseId, userRole = 'student' }) {
 
       {/* Student Submission Modal */}
       {selectedAssignment && (
-        <div 
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-in fade-in duration-150"
-          onClick={() => setSelectedAssignment(null)}
-        >
-          <div 
-            className="bg-slate-900 border border-slate-800 w-full max-w-lg rounded-2xl p-6 shadow-2xl relative space-y-4"
-            onClick={(e) => e.stopPropagation()} // Prevent backdrop click from closing
-          >
-            {/* Modal Header */}
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="text-base font-bold text-white">
-                  Submit Work: {selectedAssignment.title}
-                </h3>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Due date: {new Date(selectedAssignment.dueDate).toLocaleString()}
-                </p>
-              </div>
-              <button
-                onClick={() => setSelectedAssignment(null)}
-                className="text-slate-500 hover:text-white transition p-1"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Form */}
-            <form onSubmit={handleSubmitWork} className="space-y-4">
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
-                  Submission Notes / Content
-                </label>
-                <textarea
-                  rows={3}
-                  value={submissionText}
-                  onChange={(e) => setSubmissionText(e.target.value)}
-                  placeholder="Write your text submission or additional notes here..."
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-sky-500 transition"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">
-                  External Deliverable URL
-                </label>
-                <input
-                  type="url"
-                  value={fileUrl}
-                  onChange={(e) => setFileUrl(e.target.value)}
-                  placeholder="https://github.com/username/repo or Google Drive link"
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-sky-500 transition"
-                />
-              </div>
-
-              {submitMsg.text && (
-                <div
-                  className={`p-3 rounded-xl text-xs flex items-center space-x-2 ${
-                    submitMsg.type === 'error'
-                      ? 'bg-red-500/10 text-red-400 border border-red-500/20'
-                      : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                  }`}
-                >
-                  <span>{submitMsg.text}</span>
-                </div>
-              )}
-
-              <div className="flex justify-end space-x-3 pt-2 border-t border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setSelectedAssignment(null)}
-                  className="px-4 py-2 text-xs font-medium text-slate-400 hover:text-white transition"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded-xl text-xs font-semibold disabled:opacity-50 transition"
-                >
-                  {submitting ? 'Submitting...' : 'Confirm Submission'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <SubmitAssignmentModal
+          assignment={selectedAssignment}
+          onClose={() => setSelectedAssignment(null)}
+          onSubmitted={fetchAssignments}
+        />
       )}
 
       {/* Faculty Create Assignment Modal */}
-      {isModalOpen && (
+      {isCreateModalOpen && (
         <CreateAssignmentModal
           courseId={courseId}
-          onClose={() => setIsModalOpen(false)}
+          onClose={() => setIsCreateModalOpen(false)}
           onCreated={fetchAssignments}
         />
       )}

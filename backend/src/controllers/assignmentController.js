@@ -141,6 +141,15 @@ export const submitAssignment = asyncHandler(async (req, res) => {
  * @route   PUT /api/assignments/submissions/:submissionId/grade
  * @access  Private (Assigned Faculty, Admin)
  */
+
+const isUserCourseFaculty = (course, userId) => {
+  if (!course || !course.faculty) return false;
+  if (Array.isArray(course.faculty)) {
+    return course.faculty.some((f) => f.toString() === userId.toString());
+  }
+  return course.faculty.toString() === userId.toString();
+};
+
 export const gradeSubmission = asyncHandler(async (req, res) => {
   const { submissionId } = req.params;
   const { marksObtained, feedback } = req.body;
@@ -158,7 +167,7 @@ export const gradeSubmission = asyncHandler(async (req, res) => {
 
   // Check if current user is assigned faculty for the assignment's course
   const course = await Course.findById(submission.assignment.course);
-  const isAssignedFaculty = course.faculty.toString() === req.user._id.toString();
+  const isAssignedFaculty = isUserCourseFaculty(course, req.user._id);
   const isAdmin = req.user.role === 'admin';
 
   if (!isAssignedFaculty && !isAdmin) {

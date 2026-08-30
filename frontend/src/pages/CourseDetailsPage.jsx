@@ -10,8 +10,9 @@ import {
   Folder, 
   Download, 
   Upload, 
-  X, 
-  ExternalLink 
+  X,
+  Loader2,
+  CheckCircle2
 } from 'lucide-react';
 import { 
   getCourseDetails, 
@@ -24,7 +25,7 @@ import AssignmentList from '../components/assignments/AssignmentList';
 export default function CourseDetailsPage() {
   const { courseId } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth(); // Authenticated user context
+  const { user } = useAuth();
 
   // Core Data States
   const [course, setCourse] = useState(null);
@@ -33,7 +34,9 @@ export default function CourseDetailsPage() {
   // UI & Loading States
   const [loading, setLoading] = useState(true);
   const [materialsLoading, setMaterialsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('assignments'); // 'assignments' | 'materials' | 'overview'
+  
+  // Tabs: 'overview' (Course) | 'materials' (Study Material) | 'assignments' (Assignments)
+  const [activeTab, setActiveTab] = useState('overview');
 
   // Material Upload Modal State (Faculty/Admin)
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -46,14 +49,10 @@ export default function CourseDetailsPage() {
     fileType: 'pdf'
   });
 
-  /**
-   * Fetch Course Details directly by ID from Backend
-   */
   const fetchCourseInfo = useCallback(async () => {
     try {
       setLoading(true);
       const res = await getCourseDetails(courseId);
-      // Handles both { data: { ... } } and direct object returns cleanly
       const courseData = res.data?.data || res.data;
       setCourse(courseData);
     } catch (err) {
@@ -63,9 +62,6 @@ export default function CourseDetailsPage() {
     }
   }, [courseId]);
 
-  /**
-   * Fetch downloadable course study materials
-   */
   const fetchMaterials = useCallback(async () => {
     try {
       setMaterialsLoading(true);
@@ -84,9 +80,6 @@ export default function CourseDetailsPage() {
     fetchMaterials();
   }, [fetchCourseInfo, fetchMaterials]);
 
-  /**
-   * Handle Material Upload Form Submission (Faculty / Admin only)
-   */
   const handleUploadSubmit = async (e) => {
     e.preventDefault();
     if (!materialForm.title.trim() || !materialForm.fileUrl.trim()) {
@@ -99,7 +92,6 @@ export default function CourseDetailsPage() {
       setUploadError(null);
       await addCourseMaterial(courseId, materialForm);
       
-      // Reset form and refresh list
       setMaterialForm({ title: '', description: '', fileUrl: '', fileType: 'pdf' });
       setShowUploadModal(false);
       await fetchMaterials();
@@ -111,20 +103,17 @@ export default function CourseDetailsPage() {
     }
   };
 
-  // Determine if current user has faculty ownership permissions for this course
+  // Safe ObjectId comparison for faculty ownership
+  const facultyId = course?.faculty?._id || course?.faculty;
   const isFacultyOwner = 
     user?.role === 'admin' || 
-    (user?.role === 'faculty' && (course?.faculty?._id === user?._id || course?.faculty === user?._id));
-
-  // --- RENDERING STATES ---
+    (user?.role === 'faculty' && String(facultyId) === String(user?._id));
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px] text-slate-400 text-sm">
-        <div className="flex items-center space-x-2">
-          <div className="w-4 h-4 border-2 border-sky-400 border-t-transparent rounded-full animate-spin" />
-          <span>Loading course workspace...</span>
-        </div>
+      <div className="flex items-center justify-center min-h-[400px] text-slate-400 text-xs space-x-2">
+        <Loader2 className="w-5 h-5 animate-spin text-sky-400" />
+        <span>Loading course workspace...</span>
       </div>
     );
   }
@@ -132,9 +121,9 @@ export default function CourseDetailsPage() {
   if (!course) {
     return (
       <div className="max-w-4xl mx-auto my-12 p-8 bg-slate-900 border border-slate-800 rounded-2xl text-center space-y-4">
-        <p className="text-slate-300 font-medium">Course not found or access restricted.</p>
+        <p className="text-slate-300 font-medium text-sm">Course not found or access restricted.</p>
         <p className="text-xs text-slate-500">
-          Ensure you are actively enrolled or hold access rights for this course code.
+          Ensure you are actively enrolled or hold access rights for this course.
         </p>
         <button
           onClick={() => navigate('/courses')}
@@ -149,16 +138,15 @@ export default function CourseDetailsPage() {
 
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
-      {/* Top Breadcrumb Navigation */}
       <button
         onClick={() => navigate('/courses')}
         className="flex items-center space-x-1.5 text-xs text-slate-400 hover:text-white transition group"
       >
         <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-        <span>Back to Course Directory</span>
+        <span>Back to My Courses</span>
       </button>
 
-      {/* Header Banner */}
+      {/* Course Banner Header */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 relative overflow-hidden shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
           <div className="space-y-2">
@@ -181,7 +169,6 @@ export default function CourseDetailsPage() {
             </p>
           </div>
 
-          {/* Quick Metrics */}
           <div className="flex items-center space-x-6 border-t md:border-t-0 md:border-l border-slate-800 pt-4 md:pt-0 md:pl-6 text-xs">
             <div className="flex items-center space-x-2">
               <div className="p-2 bg-slate-800/80 rounded-lg text-slate-400">
@@ -206,18 +193,18 @@ export default function CourseDetailsPage() {
         </div>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="flex border-b border-slate-800 space-x-6 text-sm font-medium">
+      {/* Standard Tab Navigation */}
+      <div className="flex border-b border-slate-800 space-x-6 text-xs font-medium">
         <button
-          onClick={() => setActiveTab('assignments')}
+          onClick={() => setActiveTab('overview')}
           className={`pb-3 flex items-center space-x-2 border-b-2 transition ${
-            activeTab === 'assignments'
+            activeTab === 'overview'
               ? 'border-sky-500 text-sky-400'
               : 'border-transparent text-slate-400 hover:text-slate-200'
           }`}
         >
-          <FileText className="w-4 h-4" />
-          <span>Assignments</span>
+          <BookOpen className="w-4 h-4" />
+          <span>Course Info</span>
         </button>
 
         <button
@@ -229,34 +216,42 @@ export default function CourseDetailsPage() {
           }`}
         >
           <Folder className="w-4 h-4" />
-          <span>Study Materials ({materials.length})</span>
+          <span>Study Material ({materials.length})</span>
         </button>
 
         <button
-          onClick={() => setActiveTab('overview')}
+          onClick={() => setActiveTab('assignments')}
           className={`pb-3 flex items-center space-x-2 border-b-2 transition ${
-            activeTab === 'overview'
+            activeTab === 'assignments'
               ? 'border-sky-500 text-sky-400'
               : 'border-transparent text-slate-400 hover:text-slate-200'
           }`}
         >
-          <BookOpen className="w-4 h-4" />
-          <span>Course Details</span>
+          <CheckCircle2 className="w-4 h-4" />
+          <span>Assignments</span>
         </button>
       </div>
 
-      {/* Tab Content Area */}
+      {/* Main Tab Content */}
       <div className="pt-2">
-        {/* Tab 1: Assignments */}
-        {activeTab === 'assignments' && (
-          <AssignmentList courseId={course._id} userRole={user?.role} />
+        {activeTab === 'overview' && (
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-slate-300 text-xs space-y-4">
+            <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+              Course Overview & Syllabus
+            </h3>
+            <p className="leading-relaxed">
+              {course.description ||
+                `This course covers key competencies in ${course.department} for ${course.semester}. All lecture slides, assignments, and practical deliverables will be managed through CampusOS.`}
+            </p>
+          </div>
         )}
 
-        {/* Tab 2: Study Materials */}
         {activeTab === 'materials' && (
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
             <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-              <h3 className="text-sm font-bold text-white">Course Downloads & Resources</h3>
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider">
+                Study Materials & Resources
+              </h3>
               {isFacultyOwner && (
                 <button
                   onClick={() => setShowUploadModal(true)}
@@ -269,10 +264,12 @@ export default function CourseDetailsPage() {
             </div>
 
             {materialsLoading ? (
-              <p className="text-xs text-slate-500 text-center py-6">Loading course files...</p>
+              <div className="flex justify-center py-6">
+                <Loader2 className="w-5 h-5 animate-spin text-sky-400" />
+              </div>
             ) : materials.length === 0 ? (
               <div className="text-center py-8 text-slate-500 text-xs">
-                <p>No study materials uploaded for this course yet.</p>
+                No study materials uploaded for this course yet.
               </div>
             ) : (
               <div className="divide-y divide-slate-800">
@@ -283,7 +280,7 @@ export default function CourseDetailsPage() {
                         <span className="uppercase text-[10px] font-mono px-1.5 py-0.5 bg-slate-800 text-slate-400 rounded font-semibold">
                           {mat.fileType || 'PDF'}
                         </span>
-                        <h4 className="text-sm font-semibold text-slate-200">{mat.title}</h4>
+                        <h4 className="text-xs font-semibold text-slate-200">{mat.title}</h4>
                       </div>
                       {mat.description && (
                         <p className="text-xs text-slate-400 pl-1">{mat.description}</p>
@@ -305,24 +302,21 @@ export default function CourseDetailsPage() {
           </div>
         )}
 
-        {/* Tab 3: Overview */}
-        {activeTab === 'overview' && (
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 text-slate-300 text-xs space-y-4">
-            <h3 className="text-sm font-bold text-white">Course Overview & Syllabus</h3>
-            <p className="leading-relaxed">
-              {course.description ||
-                `This course covers key competencies in ${course.department} for ${course.semester}. All lecture slides, assignments, and practical deliverables will be managed through CampusOS.`}
-            </p>
-          </div>
+        {activeTab === 'assignments' && (
+          <AssignmentList 
+            courseId={course._id} 
+            userRole={user?.role} 
+            isFacultyOwner={isFacultyOwner} 
+          />
         )}
       </div>
 
-      {/* Upload Material Modal for Faculty */}
+      {/* Upload Study Resource Modal (Faculty) */}
       {showUploadModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-xl">
             <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-              <h3 className="text-sm font-bold text-white">Upload Study Resource</h3>
+              <h3 className="text-xs font-bold text-white uppercase tracking-wider">Upload Study Resource</h3>
               <button
                 onClick={() => setShowUploadModal(false)}
                 className="text-slate-400 hover:text-white"
@@ -343,7 +337,7 @@ export default function CourseDetailsPage() {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Unit 1 - System Design Slides"
+                  placeholder="e.g. Lecture 1 Slides - Architecture Overview"
                   value={materialForm.title}
                   onChange={(e) => setMaterialForm({ ...materialForm, title: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:border-sky-500"
@@ -354,7 +348,7 @@ export default function CourseDetailsPage() {
                 <label className="block text-slate-400 font-medium mb-1">Description</label>
                 <textarea
                   rows="2"
-                  placeholder="Brief summary of this file..."
+                  placeholder="Brief summary of this resource..."
                   value={materialForm.description}
                   onChange={(e) => setMaterialForm({ ...materialForm, description: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-800 border border-slate-700 rounded-lg text-slate-200 focus:outline-none focus:border-sky-500"
@@ -400,9 +394,16 @@ export default function CourseDetailsPage() {
                 <button
                   type="submit"
                   disabled={uploadLoading}
-                  className="px-4 py-2 bg-sky-500 hover:bg-sky-400 text-slate-950 font-semibold rounded-lg transition disabled:opacity-50"
+                  className="px-4 py-2 bg-sky-500 hover:bg-sky-400 text-slate-950 font-semibold rounded-lg transition disabled:opacity-50 flex items-center space-x-1"
                 >
-                  {uploadLoading ? 'Uploading...' : 'Publish Material'}
+                  {uploadLoading ? (
+                    <>
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      <span>Publishing...</span>
+                    </>
+                  ) : (
+                    <span>Publish Material</span>
+                  )}
                 </button>
               </div>
             </form>

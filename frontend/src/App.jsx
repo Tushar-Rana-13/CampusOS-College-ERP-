@@ -40,7 +40,9 @@ export default function App() {
             <Route element={<Layout />}>
 
               {/* Shared Course Routes */}
+              
               <Route path="/courses" element={<CourseRoute />} />
+              <Route path="/my-courses" element={<MyCourses />} />
               <Route path="/courses/catalog" element={<CourseCatalog />} />
               <Route path="/courses/:courseId" element={<CourseDetailsPage />} />
 

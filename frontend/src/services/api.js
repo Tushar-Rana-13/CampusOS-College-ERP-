@@ -8,7 +8,6 @@ const API = axios.create({
   },
 });
 
-
 // 2. Request Interceptor: Attach JWT Bearer Token dynamically
 API.interceptors.request.use(
   (config) => {
@@ -78,6 +77,8 @@ export const deleteCourseMaterial = (courseId, materialId) => API.delete(`/cours
 export const createAssignment = (data) => API.post('/assignments', data);
 export const getCourseAssignments = (courseId) => API.get(`/assignments/course/${courseId}`);
 export const submitAssignment = (id, data) => API.post(`/assignments/${id}/submit`, data);
+export const getAssignmentSubmissions = (id) => API.get(`/assignments/${id}/submissions`);
+export const gradeSubmission = (submissionId, data) => API.put(`/assignments/submissions/${submissionId}/grade`, data);
 
 // Helpdesk & Support Ticket Endpoints
 export const getTickets = () => API.get('/tickets');
