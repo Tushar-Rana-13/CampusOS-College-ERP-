@@ -13,21 +13,27 @@ export default function FacultyDashboard() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const fetchCourses = async () => {
-    try {
-      setLoading(true);
-      const response = await getCourses({ myCourses: 'true' });
-      const data = response?.data?.data || response?.data || [];
-      setCourses(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error('Failed to load faculty dashboard courses:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
+    const controller = new AbortController();
+
+    const fetchCourses = async () => {
+      try {
+        setLoading(true);
+        const response = await getCourses({ myCourses: 'true' }, { signal: controller.signal });
+        const data = response?.data?.data || response?.data || [];
+        setCourses(Array.isArray(data) ? data : []);
+      } catch (err) {
+        if (err.name !== 'CanceledError' && err.name !== 'AbortError') {
+          console.error('Failed to load faculty dashboard courses:', err);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
     fetchCourses();
+
+    return () => controller.abort();
   }, []);
 
   const handleCourseCreated = (newCourse) => {

@@ -1,4 +1,5 @@
 // client/src/pages/CourseCatalog.jsx
+
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Loader2, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
@@ -30,7 +31,7 @@ export default function CourseCatalog() {
   const [semester, setSemester] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Fetch courses list with abort controller to prevent memory leaks / race conditions
+  // Fetch courses list with abort controller
   const fetchCoursesList = useCallback(async (signal) => {
     try {
       setLoading(true);
@@ -41,7 +42,7 @@ export default function CourseCatalog() {
       if (semester) params.semester = semester;
 
       const response = await getCourses(params, { signal });
-      const courseData = response.data?.data || response.data || [];
+      const courseData = response?.data?.data || response?.data || [];
       setCourses(Array.isArray(courseData) ? courseData : []);
     } catch (err) {
       if (err.name !== 'CanceledError' && err.name !== 'AbortError') {
@@ -263,7 +264,7 @@ export default function CourseCatalog() {
                             <span>Enrolled</span>
                           </span>
                           <button
-                            onClick={() => navigate('/my-courses')}
+                            onClick={() => navigate('/dashboard')}
                             className="text-xs font-semibold text-sky-400 hover:text-sky-300 transition flex items-center space-x-1"
                           >
                             <span>Go to My Courses</span>

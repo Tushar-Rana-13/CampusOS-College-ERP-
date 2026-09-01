@@ -12,7 +12,7 @@ import ProtectedRoute from './routes/ProtectedRoute';
 import Login from './pages/Login';
 import StudentDashboard from './pages/StudentDashboard';
 import FacultyDashboard from './pages/FacultyDashboard';
-import FacultyCourses from './pages/FacultyCourses'; // <-- IMPORT FACULTY COURSES
+import FacultyCourses from './pages/FacultyCourses';
 import AdminDashboard from './pages/AdminDashboard';
 import StudentHelpdesk from './pages/StudentHelpdesk';
 import AdminHelpdesk from './pages/AdminHelpdesk';
@@ -20,6 +20,8 @@ import CoursesPage from './pages/CoursesPage';
 import MyCourses from './pages/MyCourses';
 import CourseDetailsPage from './pages/CourseDetailsPage';
 import CourseCatalog from './pages/CourseCatalog';
+import StudentAttendancePage from './pages/StudentAttendancePage'; // <-- IMPORT
+import FacultyAttendancePage from './pages/FacultyAttendancePage'; // <-- IMPORT
 import { useAuth } from './context/AuthContext';
 
 function CourseRoute() {
@@ -40,7 +42,6 @@ export default function App() {
             <Route element={<Layout />}>
 
               {/* Shared Course Routes */}
-              
               <Route path="/courses" element={<CourseRoute />} />
               <Route path="/my-courses" element={<MyCourses />} />
               <Route path="/courses/catalog" element={<CourseCatalog />} />
@@ -49,13 +50,15 @@ export default function App() {
               {/* Student Routes */}
               <Route element={<ProtectedRoute allowedRoles={['student']} />}>
                 <Route path="/student/dashboard" element={<StudentDashboard />} />
+                <Route path="/student/attendance" element={<StudentAttendancePage />} /> {/* <-- ADDED */}
                 <Route path="/student/helpdesk" element={<StudentHelpdesk />} />
               </Route>
 
               {/* Faculty Routes */}
               <Route element={<ProtectedRoute allowedRoles={['faculty']} />}>
                 <Route path="/faculty/dashboard" element={<FacultyDashboard />} />
-                <Route path="/faculty/courses" element={<FacultyCourses />} /> {/* <-- ADDED ROUTE HERE */}
+                <Route path="/faculty/courses" element={<FacultyCourses />} />
+                <Route path="/faculty/attendance" element={<FacultyAttendancePage />} /> {/* <-- ADDED */}
                 <Route path="/faculty/helpdesk" element={<AdminHelpdesk />} />
               </Route>
 

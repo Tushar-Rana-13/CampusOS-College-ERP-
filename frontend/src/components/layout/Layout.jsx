@@ -25,7 +25,8 @@ export default function Layout() {
     navigate('/login');
   };
 
-// client/src/components/layout/Layout.jsx - Updated getNavLinks function
+// client/src/components/layout/Layout.jsx
+
 const getNavLinks = () => {
   const role = user?.role;
   const baseLinks = [
@@ -41,6 +42,7 @@ const getNavLinks = () => {
       ...baseLinks,
       { name: 'My Courses', to: '/courses', icon: BookOpen },
       { name: 'Course Catalog', to: '/courses/catalog', icon: BookOpen },
+      { name: 'Attendance', to: '/student/attendance', icon: CalendarCheck }, // <-- ADDED
       { name: 'Helpdesk', to: '/student/helpdesk', icon: LifeBuoy },
     ];
   }
@@ -49,6 +51,7 @@ const getNavLinks = () => {
     return [
       ...baseLinks,
       { name: 'Managed Courses', to: '/courses', icon: BookOpen },
+      { name: 'Attendance', to: '/faculty/attendance', icon: CalendarCheck }, // <-- ADDED
       { name: 'Helpdesk', to: '/faculty/helpdesk', icon: LifeBuoy },
     ];
   }

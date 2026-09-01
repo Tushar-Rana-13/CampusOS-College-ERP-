@@ -88,6 +88,17 @@ export const updateTicket = (id, ticketData) => API.put(`/tickets/${id}`, ticket
 export const addTicketComment = (id, text) => API.post(`/tickets/${id}/comments`, { text });
 export const assignTicket = (id, assignedTo) => API.patch(`/tickets/${id}/assign`, { assignedTo });
 
+// client/src/services/api.js
+
+export const getStudentAttendance = () => API.get('/attendance/student');
+
+export const markAttendance = (data) => API.post('/attendance', data);
+
+export const getEnrolledStudentsForCourse = (courseId) => 
+  API.get(`/courses/${courseId}/students`);
+
+export const getCourseAttendance = (courseId, date, options = {}) => 
+  API.get(`/attendance/course/${courseId}?date=${date}`, options);
 // User Management Endpoints
 export const getFacultyList = () => API.get('/users?role=faculty');
 
