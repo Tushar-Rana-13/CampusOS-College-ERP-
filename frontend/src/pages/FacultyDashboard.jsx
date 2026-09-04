@@ -9,7 +9,7 @@ import AddCourseModal from '../components/AddCourseModal';
 
 export default function FacultyDashboard() {
   const { user } = useAuth();
-  const [courses, setCourses] = useState([]);
+  const [courses, setCourses] = useState([]);  
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
 

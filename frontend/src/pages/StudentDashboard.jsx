@@ -13,7 +13,7 @@ export default function StudentDashboard() {
 
   useEffect(() => {
     const controller = new AbortController();
-
+  
     const fetchEnrolledCourses = async () => {
       try {
         setLoading(true);

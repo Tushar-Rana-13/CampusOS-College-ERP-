@@ -3,7 +3,7 @@ import Submission from '../models/Submission.js';
 import Course from '../models/Course.js';
 import Enrollment from '../models/Enrollment.js';
 import asyncHandler from '../utils/asyncHandler.js';
-
+  
 /**
  * @desc    Create a new assignment for a course
  * @route   POST /api/assignments

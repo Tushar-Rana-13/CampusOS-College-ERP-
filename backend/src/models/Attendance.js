@@ -1,3 +1,4 @@
+// server/src/models/Attendance.js
 import mongoose from 'mongoose';
 
 const attendanceSchema = new mongoose.Schema(
@@ -5,42 +6,32 @@ const attendanceSchema = new mongoose.Schema(
     course: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Course',
-      required: [true, 'Course reference is required'],
+      required: true,
     },
     student: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: [true, 'Student reference is required'],
+      required: true,
     },
     date: {
       type: Date,
-      required: [true, 'Attendance date is required'],
+      required: true,
     },
     status: {
       type: String,
-      enum: {
-        values: ['Present', 'Absent', 'Late'],
-        message: '{VALUE} is not a valid attendance status',
-      },
-      required: [true, 'Attendance status is required'],
+      enum: ['Present', 'Absent', 'Late'],
+      required: true,
     },
     markedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: [true, 'MarkedBy reference is required'],
+      required: true,
     },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-// Ensures a student has only ONE attendance entry per course per day
+// Ensures a student can only have ONE attendance record per course per day
 attendanceSchema.index({ course: 1, student: 1, date: 1 }, { unique: true });
 
-// Speeds up student report aggregation ($match on student & course)
-attendanceSchema.index({ student: 1, course: 1 });
-
-const Attendance = mongoose.model('Attendance', attendanceSchema);
-
-export default Attendance;
+export default mongoose.model('Attendance', attendanceSchema);
