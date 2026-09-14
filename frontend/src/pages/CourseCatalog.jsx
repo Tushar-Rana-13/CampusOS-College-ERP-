@@ -264,7 +264,7 @@ export default function CourseCatalog() {
                             <span>Enrolled</span>
                           </span>
                           <button
-                            onClick={() => navigate('/dashboard')}
+                            onClick={() => navigate('/my-courses')}
                             className="text-xs font-semibold text-sky-400 hover:text-sky-300 transition flex items-center space-x-1"
                           >
                             <span>Go to My Courses</span>

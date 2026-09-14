@@ -1,5 +1,3 @@
-// client/src/components/attendance/FacultyAttendanceSheet.jsx
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { getCourseAttendance, markAttendance } from '../../services/api';
 import { Calendar, CheckCircle2, AlertCircle, Loader2, Save } from 'lucide-react';
@@ -15,6 +13,27 @@ export default function FacultyAttendanceSheet({ courseId }) {
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
 
+  // Extract student details safely across both flattened and nested backend payloads
+  const getStudentDetails = (item) => {
+    // If backend returns populated nested object: { studentId: { _id, name, email } }
+    if (item?.studentId && typeof item.studentId === 'object') {
+      return {
+        id: item.studentId._id,
+        name: item.studentId.name || 'Unknown Student',
+        email: item.studentId.email || 'N/A',
+        rollNumber: item.studentId.rollNumber || 'N/A',
+      };
+    }
+
+    // Standard flattened backend response: { studentId: "...", name: "...", email: "..." }
+    return {
+      id: item.studentId || item.id || item._id,
+      name: item.name || 'Unknown Student',
+      email: item.email || 'N/A',
+      rollNumber: item.rollNumber || 'N/A',
+    };
+  };
+
   // 1. Fetch Roster & Saved Attendance
   const loadSheetData = useCallback(async (signal) => {
     if (!courseId) {
@@ -28,25 +47,33 @@ export default function FacultyAttendanceSheet({ courseId }) {
       setSuccessMsg('');
 
       const response = await getCourseAttendance(courseId, selectedDate, { signal });
-      
-      // Robust data extraction handling diverse response envelopes
+
+      // Support common response envelopes
       const payload = response?.data?.data || response?.data || {};
-      const rosterData = Array.isArray(payload.roster) ? payload.roster : Array.isArray(payload) ? payload : [];
+      const rosterData = Array.isArray(payload.roster)
+        ? payload.roster
+        : Array.isArray(payload)
+        ? payload
+        : [];
 
       setStudents(rosterData);
 
-      // Populate current status mapping
+      // Populate current status mapping using unique user ID
       const initialMap = {};
       rosterData.forEach((item) => {
-        const studentId = item.studentId?._id || item.studentId || item._id;
-        initialMap[studentId] = item.status || 'Present';
+        const { id } = getStudentDetails(item);
+        if (id) {
+          initialMap[id] = item.status || 'Present';
+        }
       });
 
       setAttendanceMap(initialMap);
     } catch (err) {
       if (err.name !== 'CanceledError' && err.name !== 'AbortError') {
         console.error('Attendance Load Error:', err);
-        setError(err.response?.data?.message || 'Failed to load class roster for selected date.');
+        setError(
+          err.response?.data?.message || 'Failed to load class roster for selected date.'
+        );
         setStudents([]);
       }
     } finally {
@@ -156,31 +183,40 @@ export default function FacultyAttendanceSheet({ courseId }) {
                 <tr className="border-b border-slate-700/60 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
                   <th className="py-3 px-4">Student Name</th>
                   <th className="py-3 px-4">Email</th>
+                  <th className="py-3 px-4">Roll Number</th>
                   <th className="py-3 px-4 text-center">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-700/40 text-xs font-medium text-slate-200">
-                {students.map((item) => {
-                  const student = item.studentId || item;
-                  const sId = student._id || item._id;
+                {students.map((item, index) => {
+                  const { id: sId, name, email, rollNumber } = getStudentDetails(item);
+                  const key = sId || `row-${index}`;
                   const currentStatus = attendanceMap[sId] || 'Present';
 
                   return (
-                    <tr key={sId} className="hover:bg-slate-700/30 transition">
+                    <tr key={key} className="hover:bg-slate-700/30 transition">
                       <td className="py-3.5 px-4 font-semibold text-white">
-                        {student.name || 'Unknown Student'}
+                        {name}
                       </td>
-                      <td className="py-3.5 px-4 text-slate-400">{student.email || 'N/A'}</td>
+                      <td className="py-3.5 px-4 text-slate-400">{email}</td>
+                      <td className="py-3.5 px-4 text-slate-400">{rollNumber}</td>
                       <td className="py-3.5 px-4">
                         <div className="flex items-center justify-center space-x-2">
                           {['Present', 'Absent', 'Late'].map((status) => {
                             const isSelected = currentStatus === status;
-                            let activeClass = 'bg-slate-900 text-slate-400 border-slate-700 hover:border-slate-600';
-                            
+                            let activeClass =
+                              'bg-slate-900 text-slate-400 border-slate-700 hover:border-slate-600';
+
                             if (isSelected) {
-                              if (status === 'Present') activeClass = 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40';
-                              if (status === 'Absent') activeClass = 'bg-rose-500/20 text-rose-400 border-rose-500/40';
-                              if (status === 'Late') activeClass = 'bg-amber-500/20 text-amber-400 border-amber-500/40';
+                              if (status === 'Present')
+                                activeClass =
+                                  'bg-emerald-500/20 text-emerald-400 border-emerald-500/40';
+                              if (status === 'Absent')
+                                activeClass =
+                                  'bg-rose-500/20 text-rose-400 border-rose-500/40';
+                              if (status === 'Late')
+                                activeClass =
+                                  'bg-amber-500/20 text-amber-400 border-amber-500/40';
                             }
 
                             return (
@@ -214,7 +250,9 @@ export default function FacultyAttendanceSheet({ courseId }) {
               ) : (
                 <Save className="w-4 h-4" />
               )}
-              <span>{submitting ? 'Saving Records...' : 'Save Attendance'}</span>
+              <span>
+                {submitting ? 'Saving Records...' : 'Save Attendance'}
+              </span>
             </button>
           </div>
         </form>

@@ -3,7 +3,19 @@ import Submission from '../models/Submission.js';
 import Course from '../models/Course.js';
 import Enrollment from '../models/Enrollment.js';
 import asyncHandler from '../utils/asyncHandler.js';
-  
+
+/**
+ * Helper utility to safely verify faculty authorization across 
+ * both single ObjectId references and array-based faculty fields.
+ */
+const isUserCourseFaculty = (course, userId) => {
+  if (!course || !course.faculty) return false;
+  if (Array.isArray(course.faculty)) {
+    return course.faculty.some((f) => f.toString() === userId.toString());
+  }
+  return course.faculty.toString() === userId.toString();
+};
+
 /**
  * @desc    Create a new assignment for a course
  * @route   POST /api/assignments
@@ -23,8 +35,7 @@ export const createAssignment = asyncHandler(async (req, res) => {
     throw new Error('Course not found');
   }
 
-  // Authorization Check: Only assigned faculty or admin can create assignments
-  const isAssignedFaculty = course.faculty.toString() === req.user._id.toString();
+  const isAssignedFaculty = isUserCourseFaculty(course, req.user._id);
   const isAdmin = req.user.role === 'admin';
 
   if (!isAssignedFaculty && !isAdmin) {
@@ -48,7 +59,7 @@ export const createAssignment = asyncHandler(async (req, res) => {
 });
 
 /**
- * @desc    Get all assignments for a specific course
+ * @desc    Get all assignments for a specific course (with student submission state)
  * @route   GET /api/assignments/course/:courseId
  * @access  Private (Enrolled Students, Assigned Faculty, Admin)
  */
@@ -61,7 +72,6 @@ export const getCourseAssignments = asyncHandler(async (req, res) => {
     throw new Error('Course not found');
   }
 
-  // If user is a student, verify enrollment
   if (req.user.role === 'student') {
     const isEnrolled = await Enrollment.findOne({
       student: req.user._id,
@@ -73,9 +83,31 @@ export const getCourseAssignments = asyncHandler(async (req, res) => {
     }
   }
 
-  const assignments = await Assignment.find({ course: courseId })
+  const rawAssignments = await Assignment.find({ course: courseId })
     .populate('createdBy', 'name email')
-    .sort({ dueDate: 1 }); // Sort upcoming due dates first
+    .sort({ dueDate: 1 })
+    .lean(); // Return plain JS objects so we can attach custom properties
+
+  // If user is a student, attach their specific submission object
+  let assignments = rawAssignments;
+  if (req.user.role === 'student') {
+    const assignmentIds = rawAssignments.map((a) => a._id);
+    const userSubmissions = await Submission.find({
+      assignment: { $in: assignmentIds },
+      student: req.user._id,
+    }).lean();
+
+    const submissionMap = {};
+    userSubmissions.forEach((sub) => {
+      submissionMap[sub.assignment.toString()] = sub;
+    });
+
+    assignments = rawAssignments.map((a) => ({
+      ...a,
+      mySubmission: submissionMap[a._id.toString()] || null,
+      isSubmitted: Boolean(submissionMap[a._id.toString()]),
+    }));
+  }
 
   res.status(200).json({
     count: assignments.length,
@@ -103,7 +135,6 @@ export const submitAssignment = asyncHandler(async (req, res) => {
     throw new Error('Assignment not found');
   }
 
-  // Verify student enrollment in the course
   const isEnrolled = await Enrollment.findOne({
     student: req.user._id,
     course: assignment.course,
@@ -114,11 +145,20 @@ export const submitAssignment = asyncHandler(async (req, res) => {
     throw new Error('You are not enrolled in the course for this assignment');
   }
 
-  // Determine submission status based on due date
+  // Prevent resubmission if already graded
+  const existingSubmission = await Submission.findOne({
+    assignment: assignmentId,
+    student: req.user._id,
+  });
+
+  if (existingSubmission && existingSubmission.status === 'Graded') {
+    res.status(400);
+    throw new Error('This assignment has already been graded and cannot be resubmitted');
+  }
+
   const now = new Date();
   const status = now > new Date(assignment.dueDate) ? 'Late' : 'Submitted';
 
-  // Upsert pattern: Allow resubmissions before/after due date while updating record
   const submission = await Submission.findOneAndUpdate(
     { assignment: assignmentId, student: req.user._id },
     {
@@ -141,15 +181,6 @@ export const submitAssignment = asyncHandler(async (req, res) => {
  * @route   PUT /api/assignments/submissions/:submissionId/grade
  * @access  Private (Assigned Faculty, Admin)
  */
-
-const isUserCourseFaculty = (course, userId) => {
-  if (!course || !course.faculty) return false;
-  if (Array.isArray(course.faculty)) {
-    return course.faculty.some((f) => f.toString() === userId.toString());
-  }
-  return course.faculty.toString() === userId.toString();
-};
-
 export const gradeSubmission = asyncHandler(async (req, res) => {
   const { submissionId } = req.params;
   const { marksObtained, feedback } = req.body;
@@ -165,7 +196,6 @@ export const gradeSubmission = asyncHandler(async (req, res) => {
     throw new Error('Submission not found');
   }
 
-  // Check if current user is assigned faculty for the assignment's course
   const course = await Course.findById(submission.assignment.course);
   const isAssignedFaculty = isUserCourseFaculty(course, req.user._id);
   const isAdmin = req.user.role === 'admin';
@@ -175,7 +205,6 @@ export const gradeSubmission = asyncHandler(async (req, res) => {
     throw new Error('Not authorized to grade submissions for this course');
   }
 
-  // Validate marks bounds
   if (marksObtained < 0 || marksObtained > submission.assignment.maxMarks) {
     res.status(400);
     throw new Error(`Marks must be between 0 and ${submission.assignment.maxMarks}`);
@@ -210,7 +239,7 @@ export const getAssignmentSubmissions = asyncHandler(async (req, res) => {
   }
 
   const course = await Course.findById(assignment.course);
-  const isAssignedFaculty = course.faculty.toString() === req.user._id.toString();
+  const isAssignedFaculty = isUserCourseFaculty(course, req.user._id);
   const isAdmin = req.user.role === 'admin';
 
   if (!isAssignedFaculty && !isAdmin) {

@@ -5,11 +5,14 @@ import {
   Plus, 
   Upload, 
   CheckCircle2, 
-  Users
+  Users,
+  Award,
+  ExternalLink
 } from 'lucide-react';
 import { getCourseAssignments } from '../../services/api';
 import CreateAssignmentModal from './CreateAssignmentModal';
 import SubmitAssignmentModal from './SubmitAssignmentModal';
+import FacultyGradingModal from './FacultyGradingModal';
 
 export default function AssignmentList({ courseId, userRole = 'student', onSelectGrading }) {
   const [assignments, setAssignments] = useState([]);
@@ -19,10 +22,8 @@ export default function AssignmentList({ courseId, userRole = 'student', onSelec
   // Modals State
   const [selectedAssignment, setSelectedAssignment] = useState(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [gradingAssignment, setGradingAssignment] = useState(null);
 
-  /**
-   * Safe fetch wrapped in useCallback to avoid react hooks dependency warnings
-   */
   const fetchAssignments = useCallback(async () => {
     if (!courseId) return;
     try {
@@ -40,6 +41,14 @@ export default function AssignmentList({ courseId, userRole = 'student', onSelec
   useEffect(() => {
     fetchAssignments();
   }, [fetchAssignments]);
+
+  const handleOpenGrading = (item) => {
+    if (onSelectGrading) {
+      onSelectGrading(item);
+    } else {
+      setGradingAssignment(item);
+    }
+  };
 
   if (loading) {
     return (
@@ -86,7 +95,9 @@ export default function AssignmentList({ courseId, userRole = 'student', onSelec
         <div className="grid gap-4 md:grid-cols-2">
           {assignments.map((item) => {
             const isPastDue = new Date(item.dueDate) < new Date();
-            const hasSubmitted = item.isSubmitted || Boolean(item.mySubmission);
+            const sub = item.mySubmission;
+            const hasSubmitted = item.isSubmitted || Boolean(sub);
+            const isGraded = sub?.status === 'Graded';
 
             return (
               <div
@@ -103,8 +114,8 @@ export default function AssignmentList({ courseId, userRole = 'student', onSelec
                     <div className="flex items-center space-x-2">
                       {hasSubmitted && (
                         <span className="text-xs px-2.5 py-0.5 rounded-lg flex items-center space-x-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                          <CheckCircle2 className="w-3 h-3 mr-1" />
-                          Submitted
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Submitted</span>
                         </span>
                       )}
 
@@ -128,21 +139,52 @@ export default function AssignmentList({ courseId, userRole = 'student', onSelec
                       {item.description}
                     </p>
                   </div>
+
+                  {/* Student Grades & Feedback Summary Section */}
+                  {userRole === 'student' && hasSubmitted && (
+                    <div className="pt-2 border-t border-slate-800 space-y-2 text-xs">
+                      {isGraded ? (
+                        <div className="p-3 bg-sky-500/10 border border-sky-500/20 rounded-xl space-y-1">
+                          <div className="flex items-center justify-between text-sky-400 font-bold">
+                            <span className="flex items-center space-x-1">
+                              <Award className="w-4 h-4" />
+                              <span>Grade Received</span>
+                            </span>
+                            <span>{sub.marksObtained} / {item.maxMarks}</span>
+                          </div>
+                          {sub.feedback && (
+                            <p className="text-slate-300 text-[11px] mt-1">
+                              <strong className="text-slate-400">Feedback:</strong> {sub.feedback}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <p className="text-[11px] text-slate-400 italic">
+                          Submitted on {new Date(sub.submittedAt).toLocaleDateString()} — Awaiting Faculty Evaluation
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Student Actions */}
                 {userRole === 'student' && (
                   <button
                     onClick={() => setSelectedAssignment(item)}
+                    disabled={isGraded}
                     className={`w-full py-2 px-3 rounded-xl text-xs font-semibold flex items-center justify-center space-x-2 transition ${
-                      hasSubmitted
-                        ? 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                      isGraded
+                        ? 'bg-slate-800/50 text-slate-500 cursor-not-allowed border border-slate-800'
+                        : hasSubmitted
+                        ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
                         : 'bg-sky-600 hover:bg-sky-500 text-white'
                     }`}
                   >
                     <Upload className="w-3.5 h-3.5" />
                     <span>
-                      {hasSubmitted
+                      {isGraded
+                        ? 'Graded (Submission Locked)'
+                        : hasSubmitted
                         ? 'Resubmit Work'
                         : isPastDue
                         ? 'Turn In Late'
@@ -154,7 +196,7 @@ export default function AssignmentList({ courseId, userRole = 'student', onSelec
                 {/* Faculty / Admin Actions */}
                 {(userRole === 'faculty' || userRole === 'admin') && (
                   <button
-                    onClick={() => onSelectGrading && onSelectGrading(item)}
+                    onClick={() => handleOpenGrading(item)}
                     className="w-full py-2 px-3 bg-slate-800 hover:bg-slate-700 text-sky-400 rounded-xl text-xs font-semibold flex items-center justify-center space-x-2 border border-slate-700 transition"
                   >
                     <Users className="w-3.5 h-3.5" />
@@ -182,6 +224,14 @@ export default function AssignmentList({ courseId, userRole = 'student', onSelec
           courseId={courseId}
           onClose={() => setIsCreateModalOpen(false)}
           onCreated={fetchAssignments}
+        />
+      )}
+
+      {/* Faculty View Submissions & Grading Modal */}
+      {gradingAssignment && (
+        <FacultyGradingModal
+          assignment={gradingAssignment}
+          onClose={() => setGradingAssignment(null)}
         />
       )}
     </div>
