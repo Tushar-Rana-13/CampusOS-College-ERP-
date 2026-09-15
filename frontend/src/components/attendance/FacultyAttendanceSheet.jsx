@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { getCourseAttendance, markAttendance } from '../../services/api';
-import { Calendar, CheckCircle2, AlertCircle, Loader2, Save } from 'lucide-react';
+import { Calendar, CheckCircle2, AlertCircle, Loader2, Save, Check, XCircle, Clock } from 'lucide-react';
 
 export default function FacultyAttendanceSheet({ courseId }) {
   const [selectedDate, setSelectedDate] = useState(
@@ -15,7 +15,6 @@ export default function FacultyAttendanceSheet({ courseId }) {
 
   // Extract student details safely across both flattened and nested backend payloads
   const getStudentDetails = (item) => {
-    // If backend returns populated nested object: { studentId: { _id, name, email } }
     if (item?.studentId && typeof item.studentId === 'object') {
       return {
         id: item.studentId._id,
@@ -25,7 +24,6 @@ export default function FacultyAttendanceSheet({ courseId }) {
       };
     }
 
-    // Standard flattened backend response: { studentId: "...", name: "...", email: "..." }
     return {
       id: item.studentId || item.id || item._id,
       name: item.name || 'Unknown Student',
@@ -47,8 +45,6 @@ export default function FacultyAttendanceSheet({ courseId }) {
       setSuccessMsg('');
 
       const response = await getCourseAttendance(courseId, selectedDate, { signal });
-
-      // Support common response envelopes
       const payload = response?.data?.data || response?.data || {};
       const rosterData = Array.isArray(payload.roster)
         ? payload.roster
@@ -88,12 +84,21 @@ export default function FacultyAttendanceSheet({ courseId }) {
     return () => controller.abort();
   }, [loadSheetData]);
 
-  // 2. Local State Toggle Handler
+  // 2. Local State Toggle Handlers
   const handleStatusChange = (studentId, status) => {
     setAttendanceMap((prev) => ({
       ...prev,
       [studentId]: status,
     }));
+  };
+
+  const handleMarkAll = (status) => {
+    const updatedMap = {};
+    students.forEach((item) => {
+      const { id } = getStudentDetails(item);
+      if (id) updatedMap[id] = status;
+    });
+    setAttendanceMap(updatedMap);
   };
 
   // 3. Submit Session Payload
@@ -124,6 +129,12 @@ export default function FacultyAttendanceSheet({ courseId }) {
     }
   };
 
+  // Status Metrics Calculations
+  const totalCount = students.length;
+  const presentCount = Object.values(attendanceMap).filter((s) => s === 'Present').length;
+  const absentCount = Object.values(attendanceMap).filter((s) => s === 'Absent').length;
+  const lateCount = Object.values(attendanceMap).filter((s) => s === 'Late').length;
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-20 bg-slate-800/60 rounded-2xl border border-slate-700/60 space-y-3">
@@ -136,13 +147,42 @@ export default function FacultyAttendanceSheet({ courseId }) {
   return (
     <div className="bg-slate-800/80 border border-slate-700/60 rounded-2xl p-6 space-y-6">
       {/* Date Bar & Header Controls */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-700/60">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-700/60">
         <div>
           <h2 className="text-base font-bold text-white">Attendance Roster</h2>
-          <p className="text-xs text-slate-400">Total Enrolled: {students.length}</p>
+          <p className="text-xs text-slate-400">Total Enrolled: {totalCount}</p>
         </div>
 
-        <div className="flex items-center space-x-3">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Quick Mark All Buttons */}
+          {totalCount > 0 && (
+            <div className="flex items-center space-x-1.5 bg-slate-900/80 p-1 rounded-xl border border-slate-700/80 text-[11px]">
+              <span className="text-slate-400 px-2 font-medium">Mark All:</span>
+              <button
+                type="button"
+                onClick={() => handleMarkAll('Present')}
+                className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 font-semibold transition"
+              >
+                Present
+              </button>
+              <button
+                type="button"
+                onClick={() => handleMarkAll('Absent')}
+                className="px-2.5 py-1 rounded-lg bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 font-semibold transition"
+              >
+                Absent
+              </button>
+              <button
+                type="button"
+                onClick={() => handleMarkAll('Late')}
+                className="px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 font-semibold transition"
+              >
+                Late
+              </button>
+            </div>
+          )}
+
+          {/* Date Picker */}
           <div className="flex items-center space-x-2 bg-slate-900/80 px-3 py-1.5 rounded-xl border border-slate-700/80">
             <Calendar className="w-4 h-4 text-sky-400" />
             <input
@@ -154,6 +194,33 @@ export default function FacultyAttendanceSheet({ courseId }) {
           </div>
         </div>
       </div>
+
+      {/* Real-time Summary Pills */}
+      {totalCount > 0 && (
+        <div className="grid grid-cols-3 gap-3 text-xs">
+          <div className="bg-slate-900/50 border border-slate-700/50 p-2.5 rounded-xl flex items-center justify-between">
+            <span className="text-slate-400 flex items-center space-x-1.5">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Present</span>
+            </span>
+            <span className="text-emerald-400 font-bold">{presentCount}</span>
+          </div>
+          <div className="bg-slate-900/50 border border-slate-700/50 p-2.5 rounded-xl flex items-center justify-between">
+            <span className="text-slate-400 flex items-center space-x-1.5">
+              <XCircle className="w-3.5 h-3.5 text-rose-400" />
+              <span>Absent</span>
+            </span>
+            <span className="text-rose-400 font-bold">{absentCount}</span>
+          </div>
+          <div className="bg-slate-900/50 border border-slate-700/50 p-2.5 rounded-xl flex items-center justify-between">
+            <span className="text-slate-400 flex items-center space-x-1.5">
+              <Clock className="w-3.5 h-3.5 text-amber-400" />
+              <span>Late</span>
+            </span>
+            <span className="text-amber-400 font-bold">{lateCount}</span>
+          </div>
+        </div>
+      )}
 
       {/* Notifications */}
       {error && (
@@ -224,9 +291,10 @@ export default function FacultyAttendanceSheet({ courseId }) {
                                 key={status}
                                 type="button"
                                 onClick={() => handleStatusChange(sId, status)}
-                                className={`px-2.5 py-1 text-[11px] font-bold rounded-lg border transition ${activeClass}`}
+                                className={`px-3 py-1 text-[11px] font-bold rounded-lg border transition flex items-center space-x-1 ${activeClass}`}
                               >
-                                {status}
+                                {isSelected && <Check className="w-3 h-3 shrink-0" />}
+                                <span>{status}</span>
                               </button>
                             );
                           })}
