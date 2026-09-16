@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { ShieldAlert, Search, RefreshCw, AlertCircle, Clock, CheckCircle2, XCircle } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ShieldAlert, Search, RefreshCw } from 'lucide-react';
 import api from '../services/api';
 import TicketDetailDrawer from '../components/TicketDetailDrawer';
 import { useAuth } from '../context/AuthContext';
@@ -23,7 +23,7 @@ export default function AdminHelpdesk() {
     fetchTickets();
   }, []);
 
-  const fetchTickets = async () => {
+  async function fetchTickets() {
     try {
       setLoading(true);
       setError('');
@@ -37,7 +37,7 @@ export default function AdminHelpdesk() {
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   const handleTicketUpdate = (updatedTicket) => {
     setSelectedTicket(updatedTicket);
@@ -151,11 +151,10 @@ export default function AdminHelpdesk() {
               className="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-sky-500 transition"
             >
               <option value="All">All Categories</option>
-              <option value="Academic">Academic</option>
-              <option value="Hostel & Mess">Hostel & Mess</option>
-              <option value="IT & Campus WiFi">IT & Campus WiFi</option>
-              <option value="Fee & Accounts">Fee & Accounts</option>
-              <option value="Library">Library</option>
+              <option value="IT Support">IT Support</option>
+              <option value="Academics">Academics</option>
+              <option value="Hostel/Facility">Hostel/Facility</option>
+              <option value="Finance">Finance</option>
             </select>
           </div>
         </div>

@@ -100,7 +100,7 @@ export const getEnrolledStudentsForCourse = (courseId) =>
 export const getCourseAttendance = (courseId, date, options = {}) => 
   API.get(`/attendance/course/${courseId}?date=${date}`, options);
 // User Management Endpoints
-export const getFacultyList = () => API.get('/users?role=faculty');
+export const getFacultyList = () => API.get('/admin/users', { params: { role: 'faculty' } });
 
 export const getStudentDashboardStats = async (options = {}) => {
   return await API.get('/analytics/student', options);

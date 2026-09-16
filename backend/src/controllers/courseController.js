@@ -215,6 +215,11 @@ export const enrollInCourse = asyncHandler(async (req, res) => {
     enrollment.status = 'enrolled';
     await enrollment.save();
 
+    await Promise.all([
+      Course.findByIdAndUpdate(courseId, { $addToSet: { students: req.user._id } }),
+      User.findByIdAndUpdate(req.user._id, { $addToSet: { enrolledCourses: courseId } }),
+    ]);
+
     return res
       .status(200)
       .json(new ApiResponse(200, enrollment, `Re-enrolled in ${course.courseCode} successfully`));
@@ -232,6 +237,11 @@ export const enrollInCourse = asyncHandler(async (req, res) => {
     }
     throw err;
   }
+
+  await Promise.all([
+    Course.findByIdAndUpdate(courseId, { $addToSet: { students: req.user._id } }),
+    User.findByIdAndUpdate(req.user._id, { $addToSet: { enrolledCourses: courseId } }),
+  ]);
 
   return res
     .status(201)

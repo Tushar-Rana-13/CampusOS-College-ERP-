@@ -30,6 +30,12 @@ const courseSchema = new mongoose.Schema(
       ref: 'User',
       required: [true, 'Assigned faculty member is required'],
     },
+    students: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      }
+    ],
     semester: {
       type: String,
       required: [true, 'Semester is required'], // e.g., "Fall 2026", "Spring 2026"

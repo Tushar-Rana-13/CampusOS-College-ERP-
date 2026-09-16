@@ -35,7 +35,8 @@ const userSchema = new mongoose.Schema(
     // Student Specific Profile Fields
     rollNumber: {
       type: String,
-      default: '',
+      default: null,
+      trim: true,
     },
     department: {
       type: String,
@@ -45,6 +46,12 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 1,
     },
+    enrolledCourses: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Course',
+      },
+    ],
     // Faculty Specific Profile Fields
     designation: {
       type: String,
@@ -60,12 +67,16 @@ const userSchema = new mongoose.Schema(
   }
 );
 
+userSchema.index(
+  { rollNumber: 1 },
+  { unique: true, sparse: true }
+);
+
 // Hash password before saving
-userSchema.pre('save', async function (next) {
-  if (!this.isModified('password')) return next();
+userSchema.pre('save', async function () {
+  if (!this.isModified('password')) return;
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
-  next();
 });
 
 // Instance method to compare password
@@ -74,3 +85,4 @@ userSchema.methods.comparePassword = async function (enteredPassword) {
 };
 
 export const User = mongoose.model('User', userSchema);
+export default User ;

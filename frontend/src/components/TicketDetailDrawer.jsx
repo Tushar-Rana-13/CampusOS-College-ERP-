@@ -1,5 +1,5 @@
 // client/src/components/TicketDetailsDrawer.jsx
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { X, Send, Clock, UserCheck } from 'lucide-react';
 import api from '../services/api';
 
@@ -25,11 +25,13 @@ export default function TicketDetailsDrawer({
 
   // Sync state when active ticket prop changes
   useEffect(() => {
-    if (ticket) {
+    if (!ticket) return undefined;
+    const timer = window.setTimeout(() => {
       setStatus(ticket.status || 'Open');
       setSelectedFaculty(ticket.assignedTo?._id || ticket.assignedTo || '');
       setError('');
-    }
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [ticket]);
 
   // Scroll to bottom of comment thread on update
@@ -54,8 +56,7 @@ export default function TicketDetailsDrawer({
     if (canAssign) {
       const fetchFaculty = async () => {
         try {
-          // Adjust query parameter based on your user route
-          const res = await api.get('/users?role=faculty');
+          const res = await api.get('/admin/users', { params: { role: 'faculty' } });
           const list = res.data?.data || res.data || [];
           setFacultyList(Array.isArray(list) ? list : []);
         } catch (err) {
