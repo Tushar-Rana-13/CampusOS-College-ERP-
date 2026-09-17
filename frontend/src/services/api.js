@@ -52,9 +52,7 @@ API.interceptors.response.use(
   (response) => response,
   (error) => {
     const requestUrl = error.config?.url || '';
-    const isAuthRequest =
-      requestUrl.includes('/users/login') ||
-      requestUrl.includes('/auth/login');
+    const isAuthRequest = requestUrl.includes('/auth/login') || requestUrl.includes('/auth/register');
 
     // Redirect on expired/invalid tokens for protected route calls
     if (error.response?.status === 401 && !isAuthRequest) {
