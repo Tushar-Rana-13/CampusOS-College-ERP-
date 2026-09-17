@@ -73,9 +73,9 @@ API.interceptors.response.use(
 
 // --- Authentication Endpoints ---
 // Note: Adjust '/users/login' vs '/auth/login' to match your Express mount path
-export const loginUser = (credentials) => API.post('/users/login', credentials);
-export const registerUser = (userData) => API.post('/users/register', userData);
-export const getProfile = () => API.get('/users/profile');
+export const loginUser = (credentials) => API.post('/auth/login', credentials);
+export const registerUser = (userData) => API.post('/auth/register', userData);
+export const getProfile = () => API.get('/auth/profile');
 
 // --- Dashboard & Analytics Endpoints ---
 export const getStudentDashboardData = () => API.get('/dashboard/student');
