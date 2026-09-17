@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { BookOpenCheck, Headset, UsersRound } from 'lucide-react';
 import UserRegistrationForm from '../components/admin/UserRegistrationForm';
 import CourseEnrollmentForm from '../components/admin/CourseEnrollmentForm';
-import HelpdeskAdminView from '../components/admin/HelpdeskAdminView';
+import HelpdeskAdminView from '../components/admin/HelpdeskAdminView';   
 
 const tabs = [
   { id: 'users', label: 'User provisioning', description: 'Create student and faculty accounts.', icon: UsersRound },
