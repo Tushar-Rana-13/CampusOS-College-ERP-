@@ -4,9 +4,14 @@ import axios from 'axios';
  * 1. Base URL Normalization
  * Ensures the API base URL always targets the Express `/api` prefix cleanly.
  */
+const fallbackBaseURL = 'https://campusos-college-erp.onrender.com';
+const configuredBaseURL = import.meta.env.VITE_API_BASE_URL?.trim();
+const configuredForLocalMachine = configuredBaseURL
+  && /^(https?:\/\/)?(localhost|127\.0\.0\.1)(:\d+)?/i.test(configuredBaseURL);
 const rawBaseURL =
-  import.meta.env.VITE_API_BASE_URL ||
-  'https://campusos-college-erp.onrender.com';
+  import.meta.env.PROD && configuredForLocalMachine
+    ? fallbackBaseURL
+    : configuredBaseURL || fallbackBaseURL;
 
 // Strip any trailing slash and ensure it ends with `/api`
 const sanitizedBaseURL = rawBaseURL.replace(/\/+$/, '').endsWith('/api')
